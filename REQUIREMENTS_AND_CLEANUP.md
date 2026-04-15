@@ -26,8 +26,19 @@ This package has been cleaned for **bare-metal Linux deployment**. Docker, Kuber
 - `/etc/nginx/sites-available/thinkq.conf` for the Nginx site file
 - `/etc/ssl/thinkq/fullchain.pem` and `/etc/ssl/thinkq/privkey.pem` for HTTPS
 
+## What was removed
 
-## required before start
+- all `Dockerfile` files
+- all `docker-compose.yml` files
+- all `k8s/` directories
+- tracked `secrets/` directory
+- frontend `node_modules/`
+- frontend built `dist/`
+- local `.env` files used only for development or Compose
+- `.DS_Store` and `.vscode`
+
+## Still required before start
 
 Copy the templates from `deploy/bare-metal/env/*.example` into `/opt/thinkq/env/` and fill in real values.
 
+Do not commit real secrets back into the project tree.

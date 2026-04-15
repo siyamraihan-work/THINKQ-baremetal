@@ -34,6 +34,17 @@ browser -> frontend nginx -> backend nginx gateway -> backend microservices
 
 That keeps the browser on one origin and preserves the backend cookie flow.
 
+## Docker note
 
+The provided Nginx config proxies to `http://host.docker.internal:8080`.
+That assumes your backend gateway is reachable on port `8080` from the same PC.
+If your backend gateway uses a different port, update `nginx/default.conf`.
+
+The Docker Compose file includes:
+
+```yaml
+extra_hosts:
+  - "host.docker.internal:host-gateway"
+```
 
 That is important on Linux so the frontend container can reach services running on the host machine.

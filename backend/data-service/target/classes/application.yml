@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/thinkq}
+    username: ${SPRING_DATASOURCE_USERNAME:thinkq}
+    password: ${SPRING_DATASOURCE_PASSWORD:_Uegh3akMqE34M4u4DU8OWCEUHLyR1B9dyZHyjbAc7ropzOBe}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+security:
+  internal-api-key: ${INTERNAL_API_KEY:api_ZG3fp0iaKQTYRpjOIbBmI8bcA1QdEpnuirphsqTZRpyJFN2SyUe0KxupAeUsh6ZQ}

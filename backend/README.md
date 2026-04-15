@@ -10,6 +10,8 @@ A polyglot microservices starter platform for a tutoring/helpdesk queue.
 - **PostgreSQL** as the system of record
 - **Redis** for sessions, cache, pub/sub, and lightweight real-time fanout
 - **Python + FastAPI** for admin-only analytics export
+- **Docker Compose** for local development
+- **Kubernetes manifests** for container orchestration
 
 ## Services
 
@@ -141,6 +143,8 @@ helpdesk-polyglot-platform/
   analytics-service/
   data-service/
   nginx/
+  k8s/
+  docker-compose.yml
 ```
 
 
