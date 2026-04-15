@@ -1,0 +1,16 @@
+[Unit]
+Description=ThinkQ Data Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/work_backend/data-service
+EnvironmentFile=/opt/thinkq/env/data-service.env
+ExecStart=/usr/bin/java -jar /opt/thinkq/work_backend/data-service/target/data-service-1.0.0.jar
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

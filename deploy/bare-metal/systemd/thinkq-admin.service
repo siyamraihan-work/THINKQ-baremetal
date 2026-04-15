@@ -1,0 +1,17 @@
+[Unit]
+Description=ThinkQ Admin Service
+After=network.target redis-server.service thinkq-data.service
+Wants=redis-server.service thinkq-data.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/work_backend/admin-service
+EnvironmentFile=/opt/thinkq/env/admin-service.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

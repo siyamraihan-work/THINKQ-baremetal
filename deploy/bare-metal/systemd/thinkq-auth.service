@@ -1,0 +1,17 @@
+[Unit]
+Description=ThinkQ Auth User Service
+After=network.target redis-server.service thinkq-data.service
+Wants=redis-server.service thinkq-data.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/work_backend/auth-user-service
+EnvironmentFile=/opt/thinkq/env/auth-user-service.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

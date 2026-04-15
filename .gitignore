@@ -1,0 +1,22 @@
+# macOS / editors
+.DS_Store
+.vscode/
+
+# frontend
+thinkq-frontend-fixed-aligned/node_modules/
+thinkq-frontend-fixed-aligned/dist/
+
+# runtime env / certs / outputs
+env/
+certs/
+exports/
+*.pem
+*.key
+
+# backend secrets and local env
+work_backend/secrets/
+work_backend/.env
+thinkq-frontend-fixed-aligned/.env
+
+# logs
+*.log

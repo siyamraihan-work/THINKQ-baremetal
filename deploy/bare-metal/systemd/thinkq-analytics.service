@@ -1,0 +1,17 @@
+[Unit]
+Description=ThinkQ Analytics Service
+After=network.target redis-server.service thinkq-tickets.service
+Wants=redis-server.service thinkq-tickets.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/work_backend/analytics-service
+EnvironmentFile=/opt/thinkq/env/analytics-service.env
+ExecStart=/opt/thinkq/venvs/analytics/bin/uvicorn app.main:app --host 127.0.0.1 --port 3005
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
