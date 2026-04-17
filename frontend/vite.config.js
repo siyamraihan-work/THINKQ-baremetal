@@ -7,14 +7,14 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     proxy: {
-      '/auth': 'http://localhost:8080',
-      '/users': 'http://localhost:8080',
-      '/admin': 'http://localhost:8080',
-      '/tickets': 'http://localhost:8080',
-      '/analytics': 'http://localhost:8080',
-      '/events': 'http://localhost:8080',
-      '/queue': 'http://localhost:8080',
-      '/student': 'http://localhost:8080'
+      '/auth': 'http://localhost:3001',
+      '/users': 'http://localhost:3001',
+      '/admin': 'http://localhost:3002',
+      '/tickets': 'http://localhost:3003',
+      '/analytics': 'http://localhost:3005',
+      '/events': 'http://localhost:3004',
+      '/queue': 'http://localhost:3004',
+      '/student': 'http://localhost:3004'
     }
   }
 })
