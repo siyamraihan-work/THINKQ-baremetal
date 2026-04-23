@@ -26,6 +26,3 @@
 - backend Node dependencies installed successfully from lockfiles
 - deployment shell scripts passed `bash -n`
 
-## Remaining note
-
-- Java/Maven build was prepared for host build through the included script, but full Maven packaging was not executed inside this patch environment.
