@@ -1,0 +1,23 @@
+[Unit]
+Description=ThinkQ Notifications Service
+After=network-online.target thinkq-tickets.service
+Wants=network-online.target thinkq-tickets.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/backend/notifications-service
+EnvironmentFile=/opt/thinkq/env/notifications-service.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env node src/server.js
+Restart=always
+RestartSec=5
+User=thinkq
+Group=thinkq
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

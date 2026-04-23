@@ -1,0 +1,23 @@
+[Unit]
+Description=ThinkQ Admin Service
+After=network-online.target thinkq-data.service
+Wants=network-online.target thinkq-data.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/backend/admin-service
+EnvironmentFile=/opt/thinkq/env/admin-service.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env node src/server.js
+Restart=always
+RestartSec=5
+User=thinkq
+Group=thinkq
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

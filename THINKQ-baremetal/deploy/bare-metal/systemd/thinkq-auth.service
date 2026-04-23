@@ -1,0 +1,23 @@
+[Unit]
+Description=ThinkQ Auth User Service
+After=network-online.target redis6.service thinkq-data.service
+Wants=network-online.target redis6.service thinkq-data.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/backend/auth-user-service
+EnvironmentFile=/opt/thinkq/env/auth-user-service.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env node src/server.js
+Restart=always
+RestartSec=5
+User=thinkq
+Group=thinkq
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

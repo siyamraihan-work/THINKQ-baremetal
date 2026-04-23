@@ -1,0 +1,28 @@
+# macOS / editor junk
+.DS_Store
+.vscode/
+.idea/
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+
+# backend
+backend/*/node_modules/
+backend/data-service/target/
+
+# local runtime / secrets / exports / certs
+env/
+certs/
+exports/
+venv*/
+*.pem
+*.key
+
+# local env files
+*.env
+!deploy/bare-metal/env/*.example
+!frontend/.env.development
+
+# logs
+*.log

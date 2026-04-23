@@ -1,0 +1,24 @@
+[Unit]
+Description=ThinkQ Analytics Service
+After=network-online.target redis6.service thinkq-tickets.service
+Wants=network-online.target redis6.service thinkq-tickets.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thinkq/backend/analytics-service
+EnvironmentFile=/opt/thinkq/env/analytics-service.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/thinkq/venvs/analytics/bin/uvicorn app.main:app --host 127.0.0.1 --port 3005
+Restart=always
+RestartSec=5
+User=thinkq
+Group=thinkq
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ReadWritePaths=/opt/thinkq/exports /opt/thinkq/venvs
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
