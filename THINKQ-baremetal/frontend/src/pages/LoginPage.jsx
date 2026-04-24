@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import HeroPanel from '../components/HeroPanel'
 import AuthPageLayout from '../layouts/AuthPageLayout'
 import { devLogin, startLogin } from '../lib/api'
@@ -6,9 +6,7 @@ import { devLogin, startLogin } from '../lib/api'
 const devAuthEnabled = import.meta.env.VITE_DEV_AUTH_ENABLED === 'true'
 
 export default function LoginPage() {
-  const location = useLocation()
   const navigate = useNavigate()
-  const fromPath = location.state?.from
 
   async function handleDevLogin(user) {
     try {
@@ -33,72 +31,77 @@ export default function LoginPage() {
 
   return (
     <AuthPageLayout>
-      <HeroPanel />
-      <section className="glass-card login-panel">
-        <div className="panel-accent" />
-        <span className="chip">Secure Login</span>
-        <h2>Access ThinkQ</h2>
-        <p className="panel-copy">
-          Continue through your institutional identity provider. After successful authentication,
-          ThinkQ will read your session from the backend and place you into the correct dashboard.
-        </p>
+      <section className="auth-card">
+        <HeroPanel />
 
-        {fromPath ? (
-          <div className="notice-box">
-            You tried to open <strong>{fromPath}</strong>. Sign in first and ThinkQ will route you correctly.
+        <section className="login-panel">
+          <div className="login-card-glow" />
+
+          <div className="login-header">
+            <span className="chip">Secure access</span>
+            <h2>Welcome back</h2>
+            <p>Sign in to continue to your ThinkQ dashboard.</p>
           </div>
-        ) : null}
 
-        <button className="primary-button" onClick={startLogin} type="button">
-          Login using WebAuth
-        </button>
+          <button className="primary-button" onClick={startLogin} type="button">
+            Continue with WebAuth
+          </button>
 
-        {devAuthEnabled ? (
-          <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => handleDevLogin({
-                name: 'ThinkQ Admin',
-                email: 'admin@test.local',
-                oid: 'dev-admin-oid',
-                role: 'ADMIN'
-              })}
-            >
-              Dev Login as Admin
-            </button>
+          {devAuthEnabled ? (
+            <div className="dev-box">
+              <div className="divider">
+                <span>Development access</span>
+              </div>
 
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => handleDevLogin({
-                name: 'ThinkQ Teacher',
-                email: 'teacher@test.local',
-                oid: 'dev-teacher-oid',
-                role: 'TEACHER'
-              })}
-            >
-              Dev Login as Teacher
-            </button>
+              <div className="dev-login-grid">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() =>
+                    handleDevLogin({
+                      name: 'ThinkQ Admin',
+                      email: 'admin@test.local',
+                      oid: 'dev-admin-oid',
+                      role: 'ADMIN'
+                    })
+                  }
+                >
+                  Admin
+                </button>
 
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => handleDevLogin({
-                name: 'ThinkQ Student',
-                email: 'student@test.local',
-                oid: 'dev-student-oid',
-                role: 'STUDENT'
-              })}
-            >
-              Dev Login as Student
-            </button>
-          </div>
-        ) : null}
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() =>
+                    handleDevLogin({
+                      name: 'ThinkQ Teacher',
+                      email: 'teacher@test.local',
+                      oid: 'dev-teacher-oid',
+                      role: 'TEACHER'
+                    })
+                  }
+                >
+                  Teacher
+                </button>
 
-        <p className="subtle-text">
-          This frontend is wired to the live service routes: <code>/auth</code>, <code>/users</code>, <code>/tickets</code>, <code>/admin</code>, and <code>/analytics</code>.
-        </p>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() =>
+                    handleDevLogin({
+                      name: 'ThinkQ Student',
+                      email: 'student@test.local',
+                      oid: 'dev-student-oid',
+                      role: 'STUDENT'
+                    })
+                  }
+                >
+                  Student
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
       </section>
     </AuthPageLayout>
   )
