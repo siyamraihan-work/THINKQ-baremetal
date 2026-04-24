@@ -9,8 +9,7 @@ export default function UnauthorizedPage() {
         <div className="status-code">403</div>
         <h1>Unauthorized</h1>
         <p className="panel-copy">
-          Your current role does not have permission to open this area. ThinkQ uses backend session data and role guards,
-          so access here is intentionally blocked.
+          Your current role does not have permission to open this area.
         </p>
         <div className="unauthorized-actions">
           <Link className="primary-button link-button" to="/login">
