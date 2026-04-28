@@ -14,30 +14,57 @@ ensure_user() {
 }
 
 echo "Installing Amazon Linux 2023 packages..."
-dnf install -y   nginx   redis6   nodejs20   nodejs20-npm   java-21-amazon-corretto-devel   maven   python3   python3-pip   git   curl   tar   unzip  git   curl   tar   unzip
+dnf install -y \
+  nginx \
+  redis6 \
+  nodejs20 \
+  nodejs20-npm \
+  java-21-amazon-corretto-devel \
+  maven \
+  python3 \
+  python3-pip \
+  git \
+  curl \
+  tar \
+  unzip
 
 if command -v /usr/bin/node-20 >/dev/null 2>&1; then
   alternatives --set node /usr/bin/node-20 || true
 fi
+
 if command -v /usr/bin/npm-20 >/dev/null 2>&1; then
   alternatives --set npm /usr/bin/npm-20 || true
 fi
 
 ensure_user
-mkdir -p "$APP_ROOT" "$APP_ROOT/env" "$APP_ROOT/certs" "$APP_ROOT/exports" "$APP_ROOT/venvs"
-chown -R thinkq:thinkq "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs"
+
+mkdir -p \
+  "$APP_ROOT" \
+  "$APP_ROOT/env" \
+  "$APP_ROOT/certs" \
+  "$APP_ROOT/exports" \
+  "$APP_ROOT/venvs" \
+  "$APP_ROOT/frontend" \
+  "$APP_ROOT/backend" \
+  "$APP_ROOT/deploy"
+
+chown -R thinkq:thinkq \
+  "$APP_ROOT/env" \
+  "$APP_ROOT/exports" \
+  "$APP_ROOT/venvs" \
+  "$APP_ROOT/frontend" \
+  "$APP_ROOT/backend" \
+  "$APP_ROOT/deploy"
+
 chmod 755 "$APP_ROOT" "$APP_ROOT/certs"
 chmod 750 "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs"
 
-for template in   auth-user-service   admin-service   tickets-service   notifications-service   analytics-service   data-service; do
-  target="$APP_ROOT/env/${template}.env"
-  source="$APP_ROOT/deploy/bare-metal/env/${template}.env.example"
-  if [ -f "$source" ] && [ ! -f "$target" ]; then
-    cp "$source" "$target"
-    chown thinkq:thinkq "$target"
-    chmod 640 "$target"
-  fi
-done
+systemctl enable redis6
+systemctl start redis6
 
 echo "Bootstrap complete."
-echo "Next: edit /opt/thinkq/env/*.env, install certificates, then run build-and-install.sh"
+echo "Next steps:"
+echo "1. Copy project files into /opt/thinkq"
+echo "2. Place env files under /opt/thinkq/env"
+echo "3. Run install-rds-ca.sh if Aurora TLS is enabled"
+echo "4. Run build-and-install.sh"

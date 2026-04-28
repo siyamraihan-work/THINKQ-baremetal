@@ -8,21 +8,31 @@ fi
 APP_ROOT=/opt/thinkq
 FRONTEND_DIR="$APP_ROOT/frontend"
 BACKEND_DIR="$APP_ROOT/backend"
+DEPLOY_DIR="$APP_ROOT/deploy/bare-metal"
 VENV_ROOT="$APP_ROOT/venvs"
 VENV_DIR="$VENV_ROOT/analytics"
 JAVA21_HOME=/usr/lib/jvm/java-21-amazon-corretto
 
-if [ ! -d "$FRONTEND_DIR" ] || [ ! -d "$BACKEND_DIR" ]; then
-  echo "Expected frontend/ and backend/ under $APP_ROOT" >&2
-  exit 1
-fi
+required_paths=(
+  "$FRONTEND_DIR"
+  "$BACKEND_DIR"
+  "$DEPLOY_DIR/systemd"
+  "$DEPLOY_DIR/nginx"
+)
+
+for path in "${required_paths[@]}"; do
+  if [ ! -e "$path" ]; then
+    echo "Missing required path: $path" >&2
+    exit 1
+  fi
+done
 
 if [ ! -x "$JAVA21_HOME/bin/java" ]; then
   echo "Java 21 not found at $JAVA21_HOME" >&2
   exit 1
 fi
 
-chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend"
+chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy"
 install -d -o thinkq -g thinkq "$VENV_ROOT"
 
 run_as_thinkq() {
@@ -40,7 +50,7 @@ run_as_thinkq "cd '$FRONTEND_DIR' && npm ci && npm run build"
 
 echo "Installing Node service dependencies..."
 for service in auth-user-service admin-service tickets-service notifications-service; do
-  run_as_thinkq "cd '$BACKEND_DIR/$service' && npm install --omit=dev"
+  run_as_thinkq "cd '$BACKEND_DIR/$service' && npm ci --omit=dev"
 done
 
 echo "Building analytics virtualenv..."
@@ -53,13 +63,19 @@ run_as_thinkq "cd '$BACKEND_DIR/data-service' && export JAVA_HOME='$JAVA21_HOME'
 
 echo "Installing systemd units..."
 for unit in thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics; do
-  cp "$APP_ROOT/deploy/bare-metal/systemd/${unit}.service" /etc/systemd/system/
+  cp "$DEPLOY_DIR/systemd/${unit}.service" /etc/systemd/system/
 done
 systemctl daemon-reload
 
 echo "Installing Nginx config..."
-cp "$APP_ROOT/deploy/bare-metal/nginx/thinkq.conf" /etc/nginx/conf.d/thinkq.conf
+cp "$DEPLOY_DIR/nginx/thinkq.conf" /etc/nginx/conf.d/thinkq.conf
 nginx -t
 
-echo "Build and installation steps completed."
-echo "Start services with: systemctl enable"
+echo "Enabling services..."
+systemctl enable nginx
+systemctl enable thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics
+
+echo "Build and installation complete."
+echo "Start services with:"
+echo "  systemctl restart thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics"
+echo "  systemctl restart nginx"
