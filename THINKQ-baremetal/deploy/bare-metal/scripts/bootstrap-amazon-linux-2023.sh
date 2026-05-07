@@ -13,6 +13,21 @@ ensure_user() {
   fi
 }
 
+install_maven() {
+  if command -v mvn >/dev/null 2>&1; then
+    echo "Maven already installed: $(mvn -version | head -n 1)"
+    return
+  fi
+
+  if dnf list --available maven3.9 >/dev/null 2>&1; then
+    echo "Installing maven3.9..."
+    dnf install -y maven3.9
+  else
+    echo "Installing maven..."
+    dnf install -y maven
+  fi
+}
+
 echo "Installing Amazon Linux 2023 packages..."
 dnf install -y \
   nginx \
@@ -20,13 +35,14 @@ dnf install -y \
   nodejs20 \
   nodejs20-npm \
   java-21-amazon-corretto-devel \
-  maven \
   python3 \
   python3-pip \
   git \
   curl \
   tar \
   unzip
+
+install_maven
 
 if command -v /usr/bin/node-20 >/dev/null 2>&1; then
   alternatives --set node /usr/bin/node-20 || true
