@@ -27,7 +27,7 @@ curl -X POST http://localhost/admin/buildings \
 ## Create room as admin
 
 ```bash
-curl -X POST http://localhost/admin/rooms \
+curl -X POST http://localhost/api/admin/rooms \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_ADMIN_COOKIE" \
   -d '{"buildingId":1,"name":"101"}'
