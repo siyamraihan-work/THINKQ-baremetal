@@ -40,5 +40,6 @@ This package is cleaned for **Amazon Linux 2023 bare-metal deployment**.
 1. Copy the templates from `deploy/bare-metal/env/*.example` into `/opt/thinkq/env/`.
 2. Fill in real secrets and hostnames.
 3. Install the AWS RDS CA bundle if Aurora TLS is enabled.
-4. Place the IdP signing certificate at `/opt/thinkq/certs/idp-signing.pem` if SAML is enabled.
+4. Place the IdP signing certificate at `/opt/thinkq/certs/idp-signing.pem` if SAML is enabled. For the University of Arizona metadata, use `deploy/bare-metal/certs/arizona-idp-signing.pem`.
 5. Install your real TLS certificate at `/etc/ssl/thinkq/`.
+6. Set one shared long random `INTERNAL_API_KEY` across all backend service env files and the data service env file.

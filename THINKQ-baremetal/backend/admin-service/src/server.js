@@ -2,7 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import Redis from 'ioredis';
 import { z } from 'zod';
-import { PORT, REDIS_URL } from './settings.js';
+import { PORT, REDIS_URL, SERVICE_HOST } from './settings.js';
 import { dataRequest } from './http.js';
 import { requireSession, requireRole } from './session-middleware.js';
 
@@ -184,6 +184,6 @@ app.use(function(error, req, res, next) {
   res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
 });
 
-app.listen(PORT, function() {
-  console.log(`admin-service listening on ${PORT}`);
+app.listen(PORT, SERVICE_HOST, function() {
+  console.log(`admin-service listening on ${SERVICE_HOST}:${PORT}`);
 });

@@ -61,7 +61,7 @@ It also creates:
 
 ## 3) Fill in runtime env files
 
-Copy and edit the templates in `/opt/thinkq/env/`:
+Copy each template from `/opt/thinkq/deploy/bare-metal/env/*.example` to `/opt/thinkq/env/` without the `.example` suffix, then edit the values:
 
 - `auth-user-service.env`
 - `admin-service.env`
@@ -69,6 +69,8 @@ Copy and edit the templates in `/opt/thinkq/env/`:
 - `notifications-service.env`
 - `analytics-service.env`
 - `data-service.env`
+
+All services must share the same long random `INTERNAL_API_KEY` value. In production, the Node services now fail fast if this value is missing, and the data service rejects empty internal API key configuration unless `ALLOW_EMPTY_INTERNAL_API_KEY=true` is set explicitly for local-only development.
 
 ## 4) Install certificates
 
@@ -80,7 +82,8 @@ sudo bash /opt/thinkq/deploy/bare-metal/scripts/install-rds-ca.sh
 
 IdP signing certificate:
 
-- place it at `/opt/thinkq/certs/idp-signing.pem`
+- for the University of Arizona IdP metadata shown in this package, copy `deploy/bare-metal/certs/arizona-idp-signing.pem` to `/opt/thinkq/certs/idp-signing.pem`
+- if UA rotates the IdP signing key, replace that file with the current public signing certificate from UA/InCommon metadata
 
 Public TLS certificate:
 
@@ -119,8 +122,26 @@ sudo systemctl enable --now nginx
 sudo systemctl status thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics --no-pager
 sudo nginx -t
 curl -I https://your-hostname.example/healthz
-curl -I https://your-hostname.example/auth/ping
+curl -I https://your-hostname.example/auth/metadata
+curl -I --cookie "sid=YOUR_SESSION_COOKIE" https://your-hostname.example/auth/ping
 ```
+
+## Arizona SAML settings
+
+The auth service defaults are aligned to the University of Arizona IdP metadata:
+
+- IdP entity ID: `urn:mace:incommon:arizona.edu`
+- Redirect SSO URL: `https://shibboleth.arizona.edu/idp/profile/SAML2/Redirect/SSO`
+- POST SSO URL: `https://shibboleth.arizona.edu/idp/profile/SAML2/POST/SSO`
+- Assertion signing cert: `/opt/thinkq/certs/idp-signing.pem`
+
+Register the ThinkQ service provider with UA using:
+
+- SP entity ID: `https://thinkq.arizona.edu/auth/metadata`
+- Assertion Consumer Service URL: `https://thinkq.arizona.edu/auth/saml/callback`
+- ACS binding: `urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST`
+
+The generated SP metadata is available at `/auth/metadata` after the auth service is running.
 
 ## Service ports
 

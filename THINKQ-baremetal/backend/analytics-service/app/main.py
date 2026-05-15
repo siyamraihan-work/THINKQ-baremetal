@@ -18,9 +18,11 @@ from openpyxl import Workbook
 app = FastAPI(title="analytics-service")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://127.0.0.1:8080")
 TICKETS_SERVICE_URL = os.getenv("TICKETS_SERVICE_URL", "http://127.0.0.1:3003")
 EXPORT_DIR = Path(os.getenv("EXPORT_DIR", "/opt/thinkq/exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+SESSION_TTL_SECONDS = 60 * 60 * 8
 
 
 def read_secret(path_env: str, fallback_env: str, default: str) -> str:
@@ -78,9 +80,31 @@ def require_admin_session(sid: str | None) -> dict[str, Any]:
 
     session = json.loads(raw)
     user = session.get("user") or {}
-    if user.get("role") != "ADMIN":
+    user_id = user.get("id")
+    if not user_id:
+        redis_client.delete(f"session:{sid}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    current_user = fetch_current_user(int(user_id))
+    session["user"] = current_user
+    redis_client.setex(f"session:{sid}", SESSION_TTL_SECONDS, json.dumps(session))
+
+    if current_user.get("role") != "ADMIN":
         raise HTTPException(status_code=403, detail="Admin access required")
     return session
+
+
+def fetch_current_user(user_id: int) -> dict[str, Any]:
+    response = requests.get(
+        f"{DATA_SERVICE_URL}/internal/users/{user_id}",
+        headers={"x-internal-api-key": INTERNAL_API_KEY},
+        timeout=10,
+    )
+    if response.status_code == 404:
+        raise HTTPException(status_code=401, detail="Session user no longer exists")
+    if not response.ok:
+        raise HTTPException(status_code=502, detail=f"User refresh failed: {response.status_code}")
+    return response.json()
 
 
 def fetch_report() -> list[dict[str, Any]]:

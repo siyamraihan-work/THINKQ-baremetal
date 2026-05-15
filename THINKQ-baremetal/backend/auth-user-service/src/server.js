@@ -2,13 +2,14 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import Redis from 'ioredis';
 import passport from 'passport';
-import { Strategy as SamlStrategy } from 'passport-saml';
+import { Strategy as SamlStrategy } from '@node-saml/passport-saml';
 import crypto from 'crypto';
 import { z } from 'zod';
 import {
   PORT,
   REDIS_URL,
   SAML_ENTRY_POINT,
+  SAML_IDP_ENTITY_ID,
   SAML_ISSUER,
   SAML_CALLBACK_URL,
   SAML_CERT,
@@ -17,7 +18,8 @@ import {
   LOGIN_PATH,
   UNAUTHORIZED_PATH,
   POST_LOGIN_PATH,
-  DEV_AUTH_ENABLED
+  DEV_AUTH_ENABLED,
+  SERVICE_HOST
 } from './settings.js';
 
 import { dataRequest } from './http.js';
@@ -28,24 +30,31 @@ const redis = new Redis(REDIS_URL);
 const devAuthEnabled = String(DEV_AUTH_ENABLED).toLowerCase() === 'true';
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
 if (!devAuthEnabled) {
-  passport.use(new SamlStrategy(
+  const samlStrategy = new SamlStrategy(
     {
       entryPoint: SAML_ENTRY_POINT,
       issuer: SAML_ISSUER,
+      idpIssuer: SAML_IDP_ENTITY_ID,
+      audience: SAML_ISSUER,
       callbackUrl: SAML_CALLBACK_URL,
       cert: SAML_CERT,
       identifierFormat: null,
       wantAssertionsSigned: true,
+      validateInResponseTo: 'always',
+      requestIdExpirationPeriodMs: 5 * 60 * 1000,
+      acceptedClockSkewMs: 2 * 60 * 1000,
       disableRequestedAuthnContext: true
     },
     function(profile, done) {
       return done(null, profile);
     }
-  ));
+  );
+  passport.use(samlStrategy);
 }
 
 function buildSessionCookieOptions() {
@@ -53,6 +62,7 @@ function buildSessionCookieOptions() {
     httpOnly: true,
     sameSite: 'lax',
     secure: COOKIE_SECURE,
+    maxAge: 1000 * 60 * 60 * 8,
     path: '/'
   };
 }
@@ -80,20 +90,55 @@ function buildFrontendUrl(path) {
   return base + normalizedPath;
 }
 
+function escapeXml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildServiceProviderMetadata() {
+  const entityId = escapeXml(SAML_ISSUER);
+  const callbackUrl = escapeXml(SAML_CALLBACK_URL);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${entityId}">
+  <SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</NameIDFormat>
+    <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${callbackUrl}" index="1" isDefault="true"/>
+  </SPSSODescriptor>
+</EntityDescriptor>`;
+}
+
 function normalizeSamlProfile(profile) {
   const email = firstValue(
-    profile && profile.nameID,
     profile && profile.mail,
     profile && profile.email,
-    profile && profile['urn:oid:0.9.2342.19200300.100.1.3']
+    profile && profile.emailAddress,
+    profile && profile.eduPersonPrincipalName,
+    profile && profile.eppn,
+    profile && profile['urn:oid:0.9.2342.19200300.100.1.3'],
+    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'],
+    profile && profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
+    profile && profile.nameID
   );
 
   const oid = firstValue(
     profile && profile.oid,
+    profile && profile.uid,
+    profile && profile.eduPersonTargetedID,
+    profile && profile.persistentId,
+    profile && profile.eduPersonPrincipalName,
+    profile && profile.eppn,
     profile && profile.employeeNumber,
     profile && profile['urn:oid:1.3.6.1.4.1.5643.10.0.1'],
+    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.10'],
+    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'],
     profile && profile['http://schemas.microsoft.com/identity/claims/objectidentifier'],
-    profile && profile['urn:oid:0.9.2342.19200300.100.1.1']
+    profile && profile['urn:oid:0.9.2342.19200300.100.1.1'],
+    profile && profile.nameID
   );
 
   const firstName = firstValue(
@@ -120,7 +165,7 @@ function normalizeSamlProfile(profile) {
   );
 
   const combinedName = [firstName, lastName].filter(Boolean).join(' ');
-  const name = firstValue(displayName, combinedName);
+  const name = firstValue(displayName, combinedName, email);
 
   return { email, oid, name };
 }
@@ -159,11 +204,39 @@ app.get('/health', function(req, res) {
 if (!devAuthEnabled) {
   app.get('/auth/login', passport.authenticate('saml'));
 
+  app.get('/auth/metadata', function(req, res) {
+    res.type('application/samlmetadata+xml').send(buildServiceProviderMetadata());
+  });
+
   app.get('/auth/metadata-mapping', function(req, res) {
     res.json({
+      idp: {
+        entityId: SAML_IDP_ENTITY_ID,
+        redirectSsoUrl: SAML_ENTRY_POINT,
+        postSsoUrl: 'https://shibboleth.arizona.edu/idp/profile/SAML2/POST/SSO'
+      },
+      serviceProvider: {
+        entityId: SAML_ISSUER,
+        assertionConsumerService: SAML_CALLBACK_URL,
+        metadataUrl: buildFrontendUrl('/auth/metadata')
+      },
       expectedMappings: {
-        email: ['NameID', 'urn:oid:0.9.2342.19200300.100.1.3'],
-        oid: ['urn:oid:1.3.6.1.4.1.5643.10.0.1', 'urn:oid:0.9.2342.19200300.100.1.1'],
+        email: [
+          'mail',
+          'eduPersonPrincipalName',
+          'urn:oid:0.9.2342.19200300.100.1.3',
+          'urn:oid:1.3.6.1.4.1.5923.1.1.1.6',
+          'NameID'
+        ],
+        oid: [
+          'uid',
+          'eduPersonTargetedID',
+          'eduPersonPrincipalName',
+          'urn:oid:1.3.6.1.4.1.5923.1.1.1.10',
+          'urn:oid:1.3.6.1.4.1.5923.1.1.1.6',
+          'urn:oid:0.9.2342.19200300.100.1.1',
+          'NameID'
+        ],
         name: [
           'urn:oid:2.5.4.3',
           'urn:oid:2.16.840.1.113730.3.1.241',
@@ -204,6 +277,10 @@ if (!devAuthEnabled) {
 } else {
   app.get('/auth/login', function(req, res) {
     res.status(404).json({ error: 'SAML login is disabled in development mode' });
+  });
+
+  app.get('/auth/metadata', function(req, res) {
+    res.status(404).json({ error: 'SAML metadata is disabled in development mode' });
   });
 
   app.get('/auth/metadata-mapping', function(req, res) {
@@ -299,9 +376,9 @@ app.post('/auth/dev-login', async function(req, res, next) {
 
 app.use(function(error, req, res, next) {
   console.error(error);
-  res.status(500).json({ error: error.message || 'Internal server error' });
+  res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
 });
 
-app.listen(PORT, function() {
-  console.log('auth-user-service listening on ' + PORT);
+app.listen(PORT, SERVICE_HOST, function() {
+  console.log('auth-user-service listening on ' + SERVICE_HOST + ':' + PORT);
 });

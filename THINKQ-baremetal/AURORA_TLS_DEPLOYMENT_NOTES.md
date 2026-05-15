@@ -11,6 +11,8 @@ Runtime certificate paths:
 
 The shipped Nginx config redirects HTTP to HTTPS and enables TLS 1.2 and TLS 1.3.
 
+Production auth expects `COOKIE_SECURE=true` and will fail startup if secure cookies are disabled while `NODE_ENV=production`.
+
 ## Aurora PostgreSQL
 
 The Java data service reads database connectivity from environment variables.
@@ -38,3 +40,5 @@ Use values such as:
 - `DB_SSL_ROOT_CERT=/opt/thinkq/certs/global-bundle.pem`
 
 Install the AWS RDS global CA bundle at `/opt/thinkq/certs/global-bundle.pem` before starting the data service.
+
+Set `SERVER_ADDRESS=127.0.0.1` for the data service unless you intentionally place it behind a private network boundary.

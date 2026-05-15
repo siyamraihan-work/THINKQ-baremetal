@@ -15,13 +15,22 @@
 - fixed frontend Vite dev proxy to use the real service ports
 - simplified frontend npm scripts so they work after a clean install
 - fixed duplicated `SAML_CERT_PATH` example values
+- aligned SAML defaults with University of Arizona Shibboleth metadata
+- added `/auth/metadata` service provider metadata for IdP registration
+- fixed SAML HTTP-POST callback body parsing
+- replaced deprecated `passport-saml` with maintained `@node-saml/passport-saml`
+- added production fail-fast checks for internal API keys, secure cookies, and disabled dev auth
+- refreshed session users from the data service before role checks so role changes take effect immediately
+- bound backend services to localhost by default
 - fixed the Java data service so `SERVER_PORT` can override the default port
+- fixed the Java data service so `SERVER_ADDRESS` can bind to localhost
 - updated stale docs and path references
 
 ## Verification performed
 
 - Node service source syntax checked successfully
 - analytics Python module compiled successfully
+- University of Arizona IdP signing certificate parsed successfully with Node `X509Certificate`
 - frontend production build completed successfully after a clean install
 - backend Node dependencies installed successfully from lockfiles
 - deployment shell scripts passed `bash -n`

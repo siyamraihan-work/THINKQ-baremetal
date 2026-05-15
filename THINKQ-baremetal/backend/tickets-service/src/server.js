@@ -1,8 +1,9 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import Redis from 'ioredis';
+import crypto from 'crypto';
 import { z } from 'zod';
-import { PORT, REDIS_URL, INTERNAL_API_KEY } from './settings.js';
+import { PORT, REDIS_URL, INTERNAL_API_KEY, SERVICE_HOST } from './settings.js';
 import { dataRequest } from './http.js';
 import { requireSession, requireRole } from './session-middleware.js';
 
@@ -39,7 +40,15 @@ const teacherActiveRoomSchema = z.object({
 });
 
 function requireInternalApiKey(req, res, next) {
-  if (req.headers['x-internal-api-key'] !== INTERNAL_API_KEY) {
+  const provided = String(req.headers['x-internal-api-key'] || '');
+  const expected = String(INTERNAL_API_KEY || '');
+
+  if (
+    !provided ||
+    !expected ||
+    provided.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  ) {
     return res.status(401).json({ error: 'Missing or invalid internal API key' });
   }
   next();
@@ -601,6 +610,6 @@ app.use(function(error, req, res, next) {
   res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
 });
 
-app.listen(PORT, function() {
-  console.log(`tickets-service listening on ${PORT}`);
+app.listen(PORT, SERVICE_HOST, function() {
+  console.log(`tickets-service listening on ${SERVICE_HOST}:${PORT}`);
 });

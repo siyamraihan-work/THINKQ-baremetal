@@ -2,6 +2,25 @@ import { dataRequest } from './http.js';
 
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
+async function refreshSession(redis, sid, session) {
+  if (!session || !session.user || !session.user.id) {
+    await redis.del(`session:${sid}`);
+    const error = new Error('Invalid session');
+    error.status = 401;
+    throw error;
+  }
+
+  const currentUser = await dataRequest(`/internal/users/${session.user.id}`);
+  const refreshed = {
+    ...session,
+    user: currentUser,
+    lastSeenAt: new Date().toISOString()
+  };
+
+  await redis.set(`session:${sid}`, JSON.stringify(refreshed), 'EX', SESSION_TTL_SECONDS);
+  return refreshed;
+}
+
 export function requireSession(redis) {
   return async function(req, res, next) {
     try {
@@ -15,11 +34,10 @@ export function requireSession(redis) {
         return res.status(401).json({ error: 'Session expired or missing' });
       }
 
-      await redis.expire(`session:${sid}`, SESSION_TTL_SECONDS);
-
       const session = JSON.parse(raw);
-      req.session = session;
-      req.user = session.user;
+      const refreshedSession = await refreshSession(redis, sid, session);
+      req.session = refreshedSession;
+      req.user = refreshedSession.user;
 
       try {
         await dataRequest(`/internal/sessions/${sid}/touch`, { method: 'PATCH' });
@@ -29,6 +47,9 @@ export function requireSession(redis) {
 
       next();
     } catch (error) {
+      if (error.status === 401) {
+        return res.status(401).json({ error: error.message || 'Not authenticated' });
+      }
       next(error);
     }
   };

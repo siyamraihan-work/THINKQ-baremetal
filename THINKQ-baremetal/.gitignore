@@ -18,10 +18,13 @@ exports/
 venv*/
 *.pem
 *.key
+!deploy/bare-metal/env/
+!deploy/bare-metal/env/*.example
+!deploy/bare-metal/certs/
+!deploy/bare-metal/certs/arizona-idp-signing.pem
 
 # local env files
 *.env
-!deploy/bare-metal/env/*.example
 !frontend/.env.development
 
 # logs

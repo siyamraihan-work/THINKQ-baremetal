@@ -1,30 +1,43 @@
-## Development login
+# API Examples
+
+These examples assume requests go through the public Nginx origin in production, for example `https://thinkq.arizona.edu`. For local service testing, use the service ports shown in `deploy/bare-metal/README.md`.
+
+## Development Login
+
+Only enable this route in local development with `DEV_AUTH_ENABLED=true`.
 
 ```bash
-curl -i -X POST http://localhost/auth/dev-login \
+curl -i -X POST http://localhost:3001/auth/dev-login \
   -H "Content-Type: application/json" \
   -d '{"email":"student@example.edu","oid":"oid-student-1","name":"Student One","role":"STUDENT"}'
 ```
 
-## Promote user to admin
+## Current User
 
 ```bash
-curl -X PATCH http://localhost/admin/users/1/role \
+curl -i http://localhost/users/me \
+  --cookie "sid=YOUR_SESSION_COOKIE"
+```
+
+## Promote User To Admin
+
+```bash
+curl -X PATCH http://localhost/api/admin/users/1/role \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_ADMIN_COOKIE" \
   -d '{"role":"ADMIN"}'
 ```
 
-## Create building as admin
+## Create Building As Admin
 
 ```bash
-curl -X POST http://localhost/admin/buildings \
+curl -X POST http://localhost/api/admin/buildings \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_ADMIN_COOKIE" \
   -d '{"name":"Main Lab"}'
 ```
 
-## Create room as admin
+## Create Room As Admin
 
 ```bash
 curl -X POST http://localhost/api/admin/rooms \
@@ -33,36 +46,51 @@ curl -X POST http://localhost/api/admin/rooms \
   -d '{"buildingId":1,"name":"101"}'
 ```
 
-## Create support table as admin
+## Create Support Table As Admin
 
 ```bash
-curl -X POST http://localhost/admin/locations \
+curl -X POST http://localhost/api/admin/locations \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_ADMIN_COOKIE" \
   -d '{"roomId":1,"tableNumber":"7"}'
 ```
 
-## Student creates ticket
+## Student Creates Ticket
 
 ```bash
 curl -X POST http://localhost/tickets \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_STUDENT_COOKIE" \
-  -d '{"courseId":1,"locationId":1,"issueType":"PROJECT","notes":"Need help with project setup"}'
+  -d '{"courseId":1,"locationId":1,"issueType":"PROJECT","notes":"Need help with project setup","preferredContact":"IN_PERSON"}'
 ```
 
-## Teacher accepts ticket
+## Teacher Selects Active Room
+
+```bash
+curl -X POST http://localhost/tickets/teacher/active-room \
+  -H "Content-Type: application/json" \
+  --cookie "sid=YOUR_TEACHER_COOKIE" \
+  -d '{"buildingId":1,"roomId":1}'
+```
+
+## Teacher Accepts Ticket
 
 ```bash
 curl -X POST http://localhost/tickets/1/accept \
   --cookie "sid=YOUR_TEACHER_COOKIE"
 ```
 
-## Teacher completes ticket
+## Teacher Completes Ticket
 
 ```bash
 curl -X POST http://localhost/tickets/1/complete \
   -H "Content-Type: application/json" \
   --cookie "sid=YOUR_TEACHER_COOKIE" \
   -d '{"resolutionNotes":"Explained stack trace and fixed the bug together."}'
+```
+
+## SAML Metadata
+
+```bash
+curl -i http://localhost/auth/metadata
 ```

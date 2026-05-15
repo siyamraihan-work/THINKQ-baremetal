@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8080}
+  address: ${SERVER_ADDRESS:127.0.0.1}
 
 spring:
   datasource:
@@ -22,3 +23,4 @@ spring:
 
 security:
   internal-api-key: ${INTERNAL_API_KEY:}
+  allow-empty-internal-api-key: ${ALLOW_EMPTY_INTERNAL_API_KEY:false}

@@ -16,6 +16,7 @@ Start here:
 - `deploy/bare-metal/nginx/` hardened Nginx site config
 - `deploy/bare-metal/systemd/` systemd unit files for each service
 - `deploy/bare-metal/env/` environment templates
+- `deploy/bare-metal/certs/arizona-idp-signing.pem` University of Arizona IdP signing certificate from current metadata
 - `deploy/bare-metal/scripts/` Amazon Linux 2023 helper scripts
 
 ## Intentionally excluded
@@ -42,3 +43,9 @@ Start here:
 ```
 
 All deployment files in this package now assume that exact layout.
+
+## Auth and SSO
+
+Production authentication is SAML through the University of Arizona Shibboleth IdP. The auth service exposes SP metadata at `/auth/metadata` and expects the ACS callback at `/auth/saml/callback`.
+
+Development login is available only when `DEV_AUTH_ENABLED=true`; production env files must leave it `false`.

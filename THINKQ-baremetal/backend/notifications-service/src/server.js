@@ -2,7 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import Redis from 'ioredis';
 import fetch from 'node-fetch';
-import { PORT, REDIS_URL, TICKETS_SERVICE_URL, INTERNAL_API_KEY } from './settings.js';
+import { PORT, REDIS_URL, DATA_SERVICE_URL, TICKETS_SERVICE_URL, INTERNAL_API_KEY, SERVICE_HOST } from './settings.js';
 
 const app = express();
 const redis = new Redis(REDIS_URL);
@@ -88,6 +88,38 @@ async function fetchQueueMetrics(filter) {
   return response.json();
 }
 
+async function dataRequest(path) {
+  const response = await fetch(`${DATA_SERVICE_URL}${path}`, {
+    headers: { 'x-internal-api-key': INTERNAL_API_KEY }
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Data service error ${response.status}: ${text}`);
+  }
+
+  return response.json();
+}
+
+async function refreshSession(sid, session) {
+  if (!session || !session.user || !session.user.id) {
+    await redis.del(`session:${sid}`);
+    const error = new Error('Invalid session');
+    error.status = 401;
+    throw error;
+  }
+
+  const currentUser = await dataRequest(`/internal/users/${session.user.id}`);
+  const refreshed = {
+    ...session,
+    user: currentUser,
+    lastSeenAt: new Date().toISOString()
+  };
+
+  await redis.set(`session:${sid}`, JSON.stringify(refreshed), 'EX', SESSION_TTL_SECONDS);
+  return refreshed;
+}
+
 async function pushQueueStateToClient(client) {
   const snapshot = await fetchQueueSnapshot(client.filter);
   const metrics = await fetchQueueMetrics(client.filter);
@@ -121,13 +153,15 @@ async function requireSession(req, res, next) {
       return res.status(401).json({ error: 'Session expired or missing' });
     }
 
-    await redis.expire(`session:${sid}`, SESSION_TTL_SECONDS);
-
     const session = JSON.parse(raw);
-    req.session = session;
-    req.user = session.user;
+    const refreshedSession = await refreshSession(sid, session);
+    req.session = refreshedSession;
+    req.user = refreshedSession.user;
     next();
   } catch (error) {
+    if (error.status === 401) {
+      return res.status(401).json({ error: error.message || 'Not authenticated' });
+    }
     next(error);
   }
 }
@@ -1323,6 +1357,6 @@ app.use(function(error, req, res, next) {
   res.status(500).json({ error: error.message || 'Internal server error' });
 });
 
-app.listen(PORT, function() {
-  console.log(`notifications-service listening on ${PORT}`);
+app.listen(PORT, SERVICE_HOST, function() {
+  console.log(`notifications-service listening on ${SERVICE_HOST}:${PORT}`);
 });
