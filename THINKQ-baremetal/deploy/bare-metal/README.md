@@ -121,9 +121,9 @@ sudo systemctl enable --now nginx
 ```bash
 sudo systemctl status thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics --no-pager
 sudo nginx -t
-curl -I https://your-hostname.example/healthz
-curl -I https://your-hostname.example/auth/metadata
-curl -I --cookie "sid=YOUR_SESSION_COOKIE" https://your-hostname.example/auth/ping
+curl -I https://thinkq.colo-prod-aws.arizona.edu/healthz
+curl -I https://thinkq.colo-prod-aws.arizona.edu/auth/metadata
+curl -I --cookie "sid=YOUR_SESSION_COOKIE" https://thinkq.colo-prod-aws.arizona.edu/auth/ping
 ```
 
 ## Arizona SAML settings
@@ -137,8 +137,8 @@ The auth service defaults are aligned to the University of Arizona IdP metadata:
 
 Register the ThinkQ service provider with UA using:
 
-- SP entity ID: `https://thinkq.arizona.edu/auth/metadata`
-- Assertion Consumer Service URL: `https://thinkq.arizona.edu/auth/saml/callback`
+- SP entity ID: `https://thinkq.colo-prod-aws.arizona.edu/auth/metadata`
+- Assertion Consumer Service URL: `https://thinkq.colo-prod-aws.arizona.edu/auth/saml/callback`
 - ACS binding: `urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST`
 
 The generated SP metadata is available at `/auth/metadata` after the auth service is running.

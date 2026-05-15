@@ -36,11 +36,11 @@ UvF8HVwKDLJ0n6Vwgsft9/iYix49JR53FCCQ9osF2ctaRQ1Y4LoBrenA
 
 export const SAML_ENTRY_POINT = process.env.SAML_ENTRY_POINT || 'https://shibboleth.arizona.edu/idp/profile/SAML2/Redirect/SSO';
 export const SAML_IDP_ENTITY_ID = process.env.SAML_IDP_ENTITY_ID || 'urn:mace:incommon:arizona.edu';
-export const SAML_ISSUER = process.env.SAML_ISSUER || 'https://thinkq.arizona.edu/auth/metadata';
-export const SAML_CALLBACK_URL = process.env.SAML_CALLBACK_URL || 'https://thinkq.arizona.edu/auth/saml/callback';
+export const SAML_ISSUER = process.env.SAML_ISSUER || 'https://thinkq.colo-prod-aws.arizona.edu/auth/metadata';
+export const SAML_CALLBACK_URL = process.env.SAML_CALLBACK_URL || 'https://thinkq.colo-prod-aws.arizona.edu/auth/saml/callback';
 export const SAML_CERT = readSecret(process.env.SAML_CERT_PATH, process.env.SAML_CERT, ARIZONA_IDP_SIGNING_CERT);
 
-export const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || (IS_PRODUCTION ? 'https://thinkq.arizona.edu' : 'http://localhost:5173');
+export const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || (IS_PRODUCTION ? 'https://thinkq.colo-prod-aws.arizona.edu' : 'http://localhost:5173');
 export const LOGIN_PATH = process.env.LOGIN_PATH || '/login';
 export const UNAUTHORIZED_PATH = process.env.UNAUTHORIZED_PATH || '/unauthorized';
 export const POST_LOGIN_PATH = process.env.POST_LOGIN_PATH || '/';

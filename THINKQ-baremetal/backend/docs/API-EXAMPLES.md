@@ -1,6 +1,6 @@
 # API Examples
 
-These examples assume requests go through the public Nginx origin in production, for example `https://thinkq.arizona.edu`. For local service testing, use the service ports shown in `deploy/bare-metal/README.md`.
+These examples assume requests go through the public Nginx origin in production, for example `https://thinkq.colo-prod-aws.arizona.edu`. For local service testing, use the service ports shown in `deploy/bare-metal/README.md`.
 
 ## Development Login
 
