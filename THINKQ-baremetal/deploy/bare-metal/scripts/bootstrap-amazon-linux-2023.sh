@@ -5,7 +5,11 @@ if [ "${EUID}" -ne 0 ]; then
   exec sudo bash "$0" "$@"
 fi
 
-APP_ROOT=/opt/thinkq
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_APP_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+APP_ROOT="${THINKQ_APP_ROOT:-$DEFAULT_APP_ROOT}"
+SYSTEMD_SYSTEM_DIR=/etc/systemd/system
+NGINX_CONF_DIR=/etc/nginx/conf.d
 
 ensure_user() {
   if ! id -u thinkq >/dev/null 2>&1; then
@@ -54,6 +58,8 @@ fi
 
 ensure_user
 
+install -d -m 755 "$SYSTEMD_SYSTEM_DIR" "$NGINX_CONF_DIR"
+
 mkdir -p \
   "$APP_ROOT" \
   "$APP_ROOT/env" \
@@ -65,6 +71,7 @@ mkdir -p \
   "$APP_ROOT/deploy"
 
 chown -R thinkq:thinkq \
+  "$APP_ROOT" \
   "$APP_ROOT/env" \
   "$APP_ROOT/exports" \
   "$APP_ROOT/venvs" \
@@ -79,8 +86,9 @@ systemctl enable redis6
 systemctl start redis6
 
 echo "Bootstrap complete."
+echo "Application root: $APP_ROOT"
 echo "Next steps:"
-echo "1. Copy project files into /opt/thinkq"
-echo "2. Place env files under /opt/thinkq/env"
+echo "1. Copy or keep project files under $APP_ROOT"
+echo "2. Place env files under $APP_ROOT/env"
 echo "3. Run install-rds-ca.sh if Aurora TLS is enabled"
 echo "4. Run build-and-install.sh"

@@ -10,6 +10,8 @@ frontend/dist/
 # backend
 backend/*/node_modules/
 backend/data-service/target/
+__pycache__/
+*.py[cod]
 
 # local runtime / secrets / exports / certs
 env/

@@ -5,13 +5,22 @@ if [ "${EUID}" -ne 0 ]; then
   exec sudo bash "$0" "$@"
 fi
 
-APP_ROOT=/opt/thinkq
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_ROOT="${THINKQ_APP_ROOT:-$(cd "$DEPLOY_DIR/../.." && pwd)}"
 FRONTEND_DIR="$APP_ROOT/frontend"
 BACKEND_DIR="$APP_ROOT/backend"
-DEPLOY_DIR="$APP_ROOT/deploy/bare-metal"
+ENV_DIR="$APP_ROOT/env"
 VENV_ROOT="$APP_ROOT/venvs"
 VENV_DIR="$VENV_ROOT/analytics"
 JAVA21_HOME=/usr/lib/jvm/java-21-amazon-corretto
+SYSTEMD_SYSTEM_DIR=/etc/systemd/system
+NGINX_CONF_DIR=/etc/nginx/conf.d
+SERVICE_UNITS=(thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics)
+
+escape_sed_replacement() {
+  printf '%s' "$1" | sed 's/[&#]/\\&/g'
+}
 
 required_paths=(
   "$FRONTEND_DIR"
@@ -27,13 +36,31 @@ for path in "${required_paths[@]}"; do
   fi
 done
 
+for command_name in npm python3 mvn nginx systemctl; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Missing required command: $command_name" >&2
+    exit 1
+  fi
+done
+
+install -d -m 755 "$SYSTEMD_SYSTEM_DIR" "$NGINX_CONF_DIR"
+
 if [ ! -x "$JAVA21_HOME/bin/java" ]; then
   echo "Java 21 not found at $JAVA21_HOME" >&2
   exit 1
 fi
 
-chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy"
-install -d -o thinkq -g thinkq "$VENV_ROOT"
+echo "Validating runtime environment files..."
+python3 "$DEPLOY_DIR/scripts/validate-runtime-env.py" "$ENV_DIR" --strict-files
+
+if [ ! -f /etc/ssl/thinkq/fullchain.pem ] || [ ! -f /etc/ssl/thinkq/privkey.pem ]; then
+  echo "Missing TLS certificate files under /etc/ssl/thinkq." >&2
+  echo "Expected /etc/ssl/thinkq/fullchain.pem and /etc/ssl/thinkq/privkey.pem before installing Nginx." >&2
+  exit 1
+fi
+
+install -d -o thinkq -g thinkq "$VENV_ROOT" "$APP_ROOT/exports"
+chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy" "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs"
 
 run_as_thinkq() {
   su -s /bin/bash thinkq -c "$1"
@@ -59,21 +86,22 @@ run_as_thinkq "'$VENV_DIR/bin/pip' install --upgrade pip"
 run_as_thinkq "'$VENV_DIR/bin/pip' install -r '$BACKEND_DIR/analytics-service/requirements.txt'"
 
 echo "Building Java data service..."
-run_as_thinkq "cd '$BACKEND_DIR/data-service' && export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:\$PATH' && mvn clean package -DskipTests"
+run_as_thinkq "cd '$BACKEND_DIR/data-service' && export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:\$PATH' && mvn clean verify"
 
 echo "Installing systemd units..."
-for unit in thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics; do
-  cp "$DEPLOY_DIR/systemd/${unit}.service" /etc/systemd/system/
+APP_ROOT_ESCAPED="$(escape_sed_replacement "$APP_ROOT")"
+for unit in "${SERVICE_UNITS[@]}"; do
+  sed "s#/opt/thinkq#$APP_ROOT_ESCAPED#g" "$DEPLOY_DIR/systemd/${unit}.service" > "$SYSTEMD_SYSTEM_DIR/${unit}.service"
 done
 systemctl daemon-reload
 
 echo "Installing Nginx config..."
-cp "$DEPLOY_DIR/nginx/thinkq.conf" /etc/nginx/conf.d/thinkq.conf
+sed "s#/opt/thinkq#$APP_ROOT_ESCAPED#g" "$DEPLOY_DIR/nginx/thinkq.conf" > "$NGINX_CONF_DIR/thinkq.conf"
 nginx -t
 
 echo "Enabling services..."
 systemctl enable nginx
-systemctl enable thinkq-data thinkq-auth thinkq-admin thinkq-tickets thinkq-notifications thinkq-analytics
+systemctl enable "${SERVICE_UNITS[@]}"
 
 echo "Build and installation complete."
 echo "Start services with:"

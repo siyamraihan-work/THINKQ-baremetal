@@ -25,11 +25,15 @@ This layout runs THINKQ directly on an **Amazon Linux 2023** EC2 instance or VM 
   venvs/
 ```
 
+The scripts also support a custom checkout path. Set `THINKQ_APP_ROOT=/path/to/THINKQ-baremetal` when the app is not installed directly at `/opt/thinkq`.
+
+The installer writes service units to `/etc/systemd/system/` and the Nginx site config to `/etc/nginx/conf.d/thinkq.conf`. Amazon Linux 2023 uses `conf.d`; `/etc/nginx/conf.c/` is not a standard Nginx include directory.
+
 ## 1) Copy the project to the host
 
 ```bash
 sudo mkdir -p /opt/thinkq
-sudo rsync -a THINKQ-baremetal-amzn2023/ /opt/thinkq/
+sudo rsync -a THINKQ-baremetal/ /opt/thinkq/
 ```
 
 ## 2) Install host packages and base directories
@@ -107,6 +111,18 @@ That script will:
 - install systemd unit files
 - install the Nginx config at `/etc/nginx/conf.d/thinkq.conf`
 - reload systemd and validate Nginx config
+
+Before running it on a production host, run the local deployment preflight from the app root:
+
+```bash
+bash deploy/bare-metal/scripts/validate-deployment.sh
+```
+
+To validate runtime env files before copying them onto the host:
+
+```bash
+THINKQ_ENV_DIR=/path/to/env bash deploy/bare-metal/scripts/validate-deployment.sh
+```
 
 ## 6) Start the runtime
 
