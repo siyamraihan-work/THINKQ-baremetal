@@ -24,6 +24,7 @@ import {
 
 import { dataRequest } from './http.js';
 import { requireSession } from './session-middleware.js';
+import { normalizeSamlProfile } from './saml-profile.js';
 
 const app = express();
 const redis = new Redis(REDIS_URL);
@@ -67,18 +68,6 @@ function buildSessionCookieOptions() {
   };
 }
 
-function firstValue(...values) {
-  for (const value of values) {
-    if (Array.isArray(value) && value.length > 0 && value[0]) {
-      return String(value[0]).trim();
-    }
-    if (value !== undefined && value !== null && String(value).trim() !== '') {
-      return String(value).trim();
-    }
-  }
-  return null;
-}
-
 function normalizeBaseUrl(value) {
   return String(value || '').replace(/\/$/, '');
 }
@@ -110,64 +99,6 @@ function buildServiceProviderMetadata() {
     <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${callbackUrl}" index="1" isDefault="true"/>
   </SPSSODescriptor>
 </EntityDescriptor>`;
-}
-
-function normalizeSamlProfile(profile) {
-  const email = firstValue(
-    profile && profile.mail,
-    profile && profile.email,
-    profile && profile.emailAddress,
-    profile && profile.eduPersonPrincipalName,
-    profile && profile.eppn,
-    profile && profile['urn:oid:0.9.2342.19200300.100.1.3'],
-    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'],
-    profile && profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
-    profile && profile.nameID
-  );
-
-  const oid = firstValue(
-    profile && profile.oid,
-    profile && profile.uid,
-    profile && profile.eduPersonTargetedID,
-    profile && profile.persistentId,
-    profile && profile.eduPersonPrincipalName,
-    profile && profile.eppn,
-    profile && profile.employeeNumber,
-    profile && profile['urn:oid:1.3.6.1.4.1.5643.10.0.1'],
-    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.10'],
-    profile && profile['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'],
-    profile && profile['http://schemas.microsoft.com/identity/claims/objectidentifier'],
-    profile && profile['urn:oid:0.9.2342.19200300.100.1.1'],
-    profile && profile.nameID
-  );
-
-  const firstName = firstValue(
-    profile && profile.firstName,
-    profile && profile.givenName,
-    profile && profile.given_name,
-    profile && profile['urn:oid:2.5.4.42']
-  );
-
-  const lastName = firstValue(
-    profile && profile.lastName,
-    profile && profile.sn,
-    profile && profile.surname,
-    profile && profile.family_name,
-    profile && profile['urn:oid:2.5.4.4']
-  );
-
-  const displayName = firstValue(
-    profile && profile.displayName,
-    profile && profile.cn,
-    profile && profile.name,
-    profile && profile['urn:oid:2.5.4.3'],
-    profile && profile['urn:oid:2.16.840.1.113730.3.1.241']
-  );
-
-  const combinedName = [firstName, lastName].filter(Boolean).join(' ');
-  const name = firstValue(displayName, combinedName, email);
-
-  return { email, oid, name };
 }
 
 async function createOrRefreshSession(user) {
@@ -229,18 +160,23 @@ if (!devAuthEnabled) {
           'NameID'
         ],
         oid: [
+          'uaId',
+          'urn:oid:1.3.6.1.4.1.5643.10.0.1',
           'uid',
           'eduPersonTargetedID',
           'eduPersonPrincipalName',
-          'urn:oid:1.3.6.1.4.1.5923.1.1.1.10',
           'urn:oid:1.3.6.1.4.1.5923.1.1.1.6',
+          'urn:oid:1.3.6.1.4.1.5923.1.1.1.10',
           'urn:oid:0.9.2342.19200300.100.1.1',
           'NameID'
         ],
         name: [
-          'urn:oid:2.5.4.3',
+          'displayName',
           'urn:oid:2.16.840.1.113730.3.1.241',
-          'urn:oid:2.5.4.42 + urn:oid:2.5.4.4'
+          'givenName + surname',
+          'urn:oid:2.5.4.42 + urn:oid:2.5.4.4',
+          'commonName',
+          'urn:oid:2.5.4.3'
         ]
       }
     });
