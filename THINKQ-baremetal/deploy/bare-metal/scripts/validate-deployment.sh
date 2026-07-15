@@ -58,6 +58,31 @@ if version != "1.0.0":
     raise SystemExit(f"Unexpected Maven version: {version!r}")
 PY
 
+echo "Checking deployment script host-runtime safeguards..."
+python3 - <<'PY'
+from pathlib import Path
+
+script = Path("deploy/bare-metal/scripts/build-and-install.sh").read_text(encoding="utf-8")
+
+required_snippets = {
+    "sudo -H -u thinkq": "commands executed as thinkq must use sudo -H with a controlled HOME",
+    "cd $quoted_workdir": "commands executed as thinkq must explicitly cd to the requested workdir",
+    "PYTHON311_BIN=python3.11": "analytics virtualenv must pin python3.11",
+    "$PYTHON311_BIN -m venv": "analytics virtualenv must be created with python3.11",
+    "sys.version_info[:2] == (3, 11)": "analytics virtualenv must validate Python 3.11",
+    "openssl x509": "IdP certificate must be validated with OpenSSL",
+    "SAML_CERT_PATH": "deployment must validate the configured SAML certificate path",
+}
+
+for snippet, message in required_snippets.items():
+    if snippet not in script:
+        raise SystemExit(f"build-and-install.sh missing safeguard: {message}")
+
+for forbidden in ("python3 -m venv", "su -s /bin/bash thinkq", "runuser"):
+    if forbidden in script:
+        raise SystemExit(f"build-and-install.sh still contains forbidden pattern: {forbidden}")
+PY
+
 echo "Checking environment templates..."
 python3 - <<'PY'
 from pathlib import Path
@@ -146,6 +171,8 @@ python3 - <<'PY'
 from pathlib import Path
 
 conf = Path("deploy/bare-metal/nginx/thinkq.conf").read_text(encoding="utf-8")
+public_hostname = "thinkq.colo-prod-aws.arizona.edu"
+old_hostname = "thinkq.thinktank.arizona.edu"
 required_routes = [
     "location /auth",
     "location /users",
@@ -164,6 +191,10 @@ for upstream in ("127.0.0.1:3001", "127.0.0.1:3002", "127.0.0.1:3003", "127.0.0.
         raise SystemExit(f"Missing Nginx upstream: {upstream}")
 if "/opt/thinkq/frontend/dist" not in conf:
     raise SystemExit("Nginx root should use the canonical /opt/thinkq template path")
+if old_hostname in conf:
+    raise SystemExit(f"Nginx config still contains obsolete hostname: {old_hostname}")
+if conf.count(f"server_name {public_hostname};") != 2:
+    raise SystemExit(f"Nginx config should contain exactly two server_name entries for {public_hostname}")
 PY
 
 if [ -d "$RUNTIME_ENV_DIR" ]; then

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 if [ "${EUID}" -ne 0 ]; then
   exec sudo bash "$0" "$@"
@@ -41,12 +41,21 @@ dnf install -y \
   java-21-amazon-corretto-devel \
   python3 \
   python3-pip \
+  python3.11 \
+  python3.11-pip \
   git \
   curl \
   tar \
   unzip
 
 install_maven
+
+if ! command -v python3.11 >/dev/null 2>&1; then
+  echo "ERROR: python3.11 is required for the analytics service but was not installed." >&2
+  exit 1
+fi
+
+python3.11 -c 'import sys; assert sys.version_info[:2] == (3, 11), sys.version'
 
 if command -v /usr/bin/node-20 >/dev/null 2>&1; then
   alternatives --set node /usr/bin/node-20 || true

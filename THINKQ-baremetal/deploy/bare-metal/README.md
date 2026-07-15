@@ -6,7 +6,7 @@ This layout runs THINKQ directly on an **Amazon Linux 2023** EC2 instance or VM 
 - systemd for process supervision
 - Node.js 20 for auth/admin/tickets/notifications
 - Java 21 (Amazon Corretto) for the data service
-- Python 3 virtualenv for the analytics service
+- Python 3.11 virtualenv for the analytics service
 - Redis6 for sessions and pub/sub
 - PostgreSQL or Aurora PostgreSQL as the database
 
@@ -51,8 +51,8 @@ That script installs:
 - `nodejs20` and `nodejs20-npm`
 - `java-21-amazon-corretto-devel`
 - `maven`
-- `python3`
-- `python3-pip`
+- `python3` and `python3-pip` for host tooling
+- `python3.11` and `python3.11-pip` for the analytics virtualenv
 - `git`, `curl`, `tar`, `unzip`
 
 It also creates:
@@ -86,7 +86,8 @@ sudo bash /opt/thinkq/deploy/bare-metal/scripts/install-rds-ca.sh
 
 IdP signing certificate:
 
-- for the University of Arizona IdP metadata shown in this package, copy `deploy/bare-metal/certs/arizona-idp-signing.pem` to `/opt/thinkq/certs/idp-signing.pem`
+- preserve an existing `/opt/thinkq/certs/idp-signing.pem` when it has already been validated and is readable by `thinkq`
+- for a first-time install only, copy `deploy/bare-metal/certs/arizona-idp-signing.pem` to `/opt/thinkq/certs/idp-signing.pem`
 - if UA rotates the IdP signing key, replace that file with the current public signing certificate from UA/InCommon metadata
 
 Public TLS certificate:
@@ -106,11 +107,11 @@ That script will:
 
 - install frontend dependencies and build `frontend/dist`
 - install Node service dependencies
-- create the analytics virtualenv and install Python requirements
-- build the Java data service JAR
+- create or repair the analytics virtualenv with `python3.11` and install Python requirements through that virtualenv
+- build the Java data service JAR as `thinkq` from the data-service Maven project directory
 - install systemd unit files
 - install the Nginx config at `/etc/nginx/conf.d/thinkq.conf`
-- reload systemd and validate Nginx config
+- reload systemd and validate the installed and effective Nginx config
 
 Before running it on a production host, run the local deployment preflight from the app root:
 
