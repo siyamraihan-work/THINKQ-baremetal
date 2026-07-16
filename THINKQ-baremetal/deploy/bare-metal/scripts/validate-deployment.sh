@@ -193,8 +193,15 @@ if "/opt/thinkq/frontend/dist" not in conf:
     raise SystemExit("Nginx root should use the canonical /opt/thinkq template path")
 if old_hostname in conf:
     raise SystemExit(f"Nginx config still contains obsolete hostname: {old_hostname}")
-if conf.count(f"server_name {public_hostname};") != 2:
-    raise SystemExit(f"Nginx config should contain exactly two server_name entries for {public_hostname}")
+if conf.count(f"server_name {public_hostname};") != 1:
+    raise SystemExit(f"Nginx config should contain exactly one server_name entry for {public_hostname}")
+for forbidden in ("listen 443", "ssl_certificate", "ssl_certificate_key", "return 301 https://", "X-Forwarded-Proto $scheme"):
+    if forbidden in conf:
+        raise SystemExit(f"Nginx config still contains ALB-incompatible TLS/proxy setting: {forbidden}")
+if "map $http_x_forwarded_proto $thinkq_forwarded_proto" not in conf:
+    raise SystemExit("Nginx config must preserve the ALB X-Forwarded-Proto header")
+if "map $http_x_forwarded_port $thinkq_forwarded_port" not in conf:
+    raise SystemExit("Nginx config must preserve the ALB X-Forwarded-Port header")
 PY
 
 if [ -d "$RUNTIME_ENV_DIR" ]; then

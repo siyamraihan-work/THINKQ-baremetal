@@ -15,7 +15,7 @@ This frontend is aligned to the real bare-metal layout in this package.
 
 ## Bare-metal production flow
 
-The browser stays on one HTTPS origin served by host Nginx. Nginx serves the frontend build and reverse-proxies API and SSE traffic directly to the backend services on localhost.
+The browser stays on one HTTPS origin served by the AWS ALB. The ALB terminates TLS and forwards HTTP to host Nginx, which serves the frontend build and reverse-proxies API and SSE traffic directly to the backend services on localhost.
 
 ## Local Vite development flow
 

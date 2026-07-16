@@ -12,7 +12,7 @@ This package is cleaned for **Amazon Linux 2023 bare-metal deployment**.
 - Maven
 - Valkey or Redis-compatible local service for sessions/pub-sub
 - PostgreSQL or Aurora PostgreSQL reachable over TCP 5432
-- TLS certificate and key for your chosen hostname
+- AWS ALB HTTPS listener with the public TLS certificate for your chosen hostname
 - University IdP signing certificate if SAML is enabled
 
 ## Required host paths
@@ -24,7 +24,6 @@ This package is cleaned for **Amazon Linux 2023 bare-metal deployment**.
 - `/opt/thinkq/exports` for analytics ZIP exports
 - `/opt/thinkq/venvs/analytics` for the analytics Python virtualenv
 - `/etc/nginx/conf.d/thinkq.conf` for the Nginx site config
-- `/etc/ssl/thinkq/fullchain.pem` and `/etc/ssl/thinkq/privkey.pem` for HTTPS
 
 ## Removed from this package
 
@@ -41,5 +40,5 @@ This package is cleaned for **Amazon Linux 2023 bare-metal deployment**.
 2. Fill in real secrets and hostnames.
 3. Install the AWS RDS CA bundle if Aurora TLS is enabled.
 4. Preserve the IdP signing certificate at `/opt/thinkq/certs/idp-signing.pem` if it is already installed and validated. For a first-time SAML install, use `deploy/bare-metal/certs/arizona-idp-signing.pem`.
-5. Install your real TLS certificate at `/etc/ssl/thinkq/`.
+5. Configure the AWS ALB HTTPS listener with the public TLS certificate and forward HTTP traffic to instance port 80.
 6. Set one shared long random `INTERNAL_API_KEY` across all backend service env files and the data service env file.

@@ -1,8 +1,9 @@
 # THINKQ bare-metal deployment on Amazon Linux 2023
 
-This layout runs THINKQ directly on an **Amazon Linux 2023** EC2 instance or VM with:
+This layout runs THINKQ directly on an **Amazon Linux 2023** EC2 instance or VM behind an AWS ALB with:
 
-- Nginx for TLS termination and reverse proxy
+- Nginx for HTTP reverse proxy on the instance
+- AWS ALB for public HTTPS/TLS termination
 - systemd for process supervision
 - Node.js 20 for auth/admin/tickets/notifications
 - Java 21 (Amazon Corretto) for the data service
@@ -27,7 +28,7 @@ This layout runs THINKQ directly on an **Amazon Linux 2023** EC2 instance or VM 
 
 The scripts also support a custom checkout path. Set `THINKQ_APP_ROOT=/path/to/THINKQ-baremetal` when the app is not installed directly at `/opt/thinkq`.
 
-The installer writes service units to `/etc/systemd/system/` and the Nginx site config to `/etc/nginx/conf.d/thinkq.conf`. Amazon Linux 2023 uses `conf.d`; `/etc/nginx/conf.c/` is not a standard Nginx include directory.
+The installer writes service units to `/etc/systemd/system/` and the Nginx site config to `/etc/nginx/conf.d/thinkq.conf`. Amazon Linux 2023 uses `conf.d`; `/etc/nginx/conf.c/` is not a standard Nginx include directory. Nginx listens on HTTP port 80 because the ALB terminates HTTPS and forwards HTTP to the instance.
 
 ## 1) Copy the project to the host
 
@@ -92,8 +93,8 @@ IdP signing certificate:
 
 Public TLS certificate:
 
-- place the cert at `/etc/ssl/thinkq/fullchain.pem`
-- place the key at `/etc/ssl/thinkq/privkey.pem`
+- install the public certificate on the AWS ALB HTTPS listener
+- do not place the public TLS private key on the EC2 instance for this deployment model
 
 ## 5) Build the application and install service configs
 
@@ -110,7 +111,7 @@ That script will:
 - create or repair the analytics virtualenv with `python3.11` and install Python requirements through that virtualenv
 - build the Java data service JAR as `thinkq` from the data-service Maven project directory
 - install systemd unit files
-- install the Nginx config at `/etc/nginx/conf.d/thinkq.conf`
+- install the ALB-compatible Nginx HTTP config at `/etc/nginx/conf.d/thinkq.conf`
 - reload systemd and validate the installed and effective Nginx config
 
 Before running it on a production host, run the local deployment preflight from the app root:
@@ -168,10 +169,12 @@ The generated SP metadata is available at `/auth/metadata` after the auth servic
 - notifications-service: `3004`
 - analytics-service: `3005`
 - data-service: `8080`
-- nginx public HTTPS: `443`
+- nginx instance HTTP behind ALB: `80`
+- ALB public HTTPS: `443`
 
 ## Notes
 
 - Frontend assets are served directly by Nginx from `/opt/thinkq/frontend/dist`.
 - Nginx routes directly to each service; there is no separate backend gateway directory in this package.
+- Nginx preserves the ALB-provided `X-Forwarded-Proto` and `X-Forwarded-Port` headers for backend services.
 - The default local cache/session service is redis6 on `127.0.0.1:6379`.

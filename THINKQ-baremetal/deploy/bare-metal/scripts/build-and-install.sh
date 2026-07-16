@@ -153,8 +153,16 @@ validate_nginx_config() {
     fail "Nginx config still contains obsolete hostname $OLD_HOSTNAME"
   fi
   server_name_count="$(grep -Ec "server_name[[:space:]]+$PUBLIC_HOSTNAME;" "$conf_path")"
-  [ "$server_name_count" = "2" ] \
-    || fail "Nginx config should contain exactly two server_name entries for $PUBLIC_HOSTNAME; found $server_name_count"
+  [ "$server_name_count" = "1" ] \
+    || fail "Nginx config should contain exactly one server_name entry for $PUBLIC_HOSTNAME; found $server_name_count"
+  if grep -Eq "listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://" "$conf_path"; then
+    fail "Nginx config must not terminate TLS or redirect HTTP to HTTPS; HTTPS terminates at the ALB"
+  fi
+  grep -Fq 'map $http_x_forwarded_proto $thinkq_forwarded_proto' "$conf_path" \
+    || fail "Nginx config must preserve the ALB X-Forwarded-Proto header"
+  if grep -Fq 'proxy_set_header X-Forwarded-Proto $scheme' "$conf_path"; then
+    fail "Nginx config must not replace ALB X-Forwarded-Proto with the local HTTP scheme"
+  fi
 
   nginx -t
 
@@ -171,9 +179,13 @@ validate_nginx_config() {
     fail "Effective Nginx configuration still contains obsolete hostname $OLD_HOSTNAME"
   fi
   effective_server_name_count="$(grep -Ec "server_name[[:space:]]+$PUBLIC_HOSTNAME;" "$effective_config")"
-  if [ "$effective_server_name_count" != "2" ]; then
+  if [ "$effective_server_name_count" != "1" ]; then
     rm -f "$effective_config"
-    fail "Effective Nginx configuration should contain exactly two server_name entries for $PUBLIC_HOSTNAME; found $effective_server_name_count"
+    fail "Effective Nginx configuration should contain exactly one server_name entry for $PUBLIC_HOSTNAME; found $effective_server_name_count"
+  fi
+  if grep -Eq "listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://" "$effective_config"; then
+    rm -f "$effective_config"
+    fail "Effective Nginx configuration must not terminate TLS or redirect HTTP to HTTPS; HTTPS terminates at the ALB"
   fi
 
   rm -f "$effective_config"
@@ -213,10 +225,6 @@ echo "Validating IdP signing certificate..."
 SAML_CERT_PATH_VALUE="$(read_env_value "$ENV_DIR/auth-user-service.env" "SAML_CERT_PATH")" \
   || fail "Unable to read SAML_CERT_PATH from $ENV_DIR/auth-user-service.env"
 validate_idp_certificate "$SAML_CERT_PATH_VALUE"
-
-if [ ! -f /etc/ssl/thinkq/fullchain.pem ] || [ ! -f /etc/ssl/thinkq/privkey.pem ]; then
-  fail "Missing TLS certificate files under /etc/ssl/thinkq. Expected fullchain.pem and privkey.pem before installing Nginx."
-fi
 
 install -d -o thinkq -g thinkq "$VENV_ROOT" "$APP_ROOT/exports"
 chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy" "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs"
