@@ -2,14 +2,12 @@
 
 ## TLS at the edge
 
-This package assumes TLS termination at host Nginx.
+This package assumes public TLS termination at the AWS ALB.
 
-Runtime certificate paths:
-
-- `/etc/ssl/thinkq/fullchain.pem`
-- `/etc/ssl/thinkq/privkey.pem`
-
-The shipped Nginx config redirects HTTP to HTTPS and enables TLS 1.2 and TLS 1.3.
+- The public certificate is installed on the ALB HTTPS listener.
+- The public TLS private key is not placed on the EC2 instance for this deployment model.
+- Host Nginx serves plain HTTP on port 80 behind the ALB; the shipped config has no TLS directives and no HTTP-to-HTTPS redirect.
+- Nginx preserves the ALB-provided `X-Forwarded-Proto` and `X-Forwarded-Port` headers so backend services see the original public scheme.
 
 Production auth expects `COOKIE_SECURE=true` and will fail startup if secure cookies are disabled while `NODE_ENV=production`.
 
