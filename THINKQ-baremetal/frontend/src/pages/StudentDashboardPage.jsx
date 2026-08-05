@@ -464,10 +464,12 @@ export default function StudentDashboardPage({ user }) {
         <div className="mobile-sheet-backdrop" role="presentation" onClick={function() { setIsHelpSheetOpen(false) }} />
       ) : null}
 
-      <button className="mobile-fab fab-help" type="button" onClick={function() { setIsHelpSheetOpen(true) }}>
-        <span className="fab-emoji" aria-hidden="true">🙋</span>
-        <span className="fab-label">Ask for help</span>
-      </button>
+      <div className="mobile-fab-row">
+        <button className="mobile-fab fab-help" type="button" onClick={function() { setIsHelpSheetOpen(true) }}>
+          <span className="fab-emoji" aria-hidden="true">🙋</span>
+          <span className="fab-label">Ask for help</span>
+        </button>
+      </div>
 
       {feedbackPopupTicket ? (
         <div className="feedback-popup-backdrop" role="presentation">

@@ -66,6 +66,7 @@ export default function TutorDashboardPage({ user }) {
   const [resolutionDrafts, setResolutionDrafts] = useState({})
   const [isActivating, setIsActivating] = useState(false)
   const [isRoomSheetOpen, setIsRoomSheetOpen] = useState(false)
+  const [isClaimedSheetOpen, setIsClaimedSheetOpen] = useState(false)
 
   const availableBuildings = useMemo(function() {
     return buildUniqueBuildings(lookups.locations)
@@ -136,13 +137,14 @@ export default function TutorDashboardPage({ user }) {
   }, [])
 
   useEffect(function() {
-    if (!isRoomSheetOpen) {
+    if (!isRoomSheetOpen && !isClaimedSheetOpen) {
       return
     }
     document.body.classList.add('sheet-lock')
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         setIsRoomSheetOpen(false)
+        setIsClaimedSheetOpen(false)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -150,7 +152,7 @@ export default function TutorDashboardPage({ user }) {
       document.body.classList.remove('sheet-lock')
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isRoomSheetOpen])
+  }, [isRoomSheetOpen, isClaimedSheetOpen])
 
   useEffect(function() {
     const exists = availableBuildings.some(function(building) {
@@ -420,7 +422,12 @@ export default function TutorDashboardPage({ user }) {
           </div>
         </section>
 
-        <section className="dashboard-card">
+        <section className={isClaimedSheetOpen ? 'dashboard-card claimed-card mobile-sheet sheet-open' : 'dashboard-card claimed-card mobile-sheet'}>
+          <div className="sheet-head">
+            <span className="sheet-grabber" aria-hidden="true" />
+            <button className="sheet-close" type="button" aria-label="Close claimed tickets" onClick={function() { setIsClaimedSheetOpen(false) }}>×</button>
+          </div>
+
           <div className="card-heading-row">
             <div>
               <span className="card-eyebrow">Your Workbench</span>
@@ -466,18 +473,42 @@ export default function TutorDashboardPage({ user }) {
         </section>
       </div>
 
-      {isRoomSheetOpen ? (
-        <div className="mobile-sheet-backdrop" role="presentation" onClick={function() { setIsRoomSheetOpen(false) }} />
+      {isRoomSheetOpen || isClaimedSheetOpen ? (
+        <div
+          className="mobile-sheet-backdrop"
+          role="presentation"
+          onClick={function() {
+            setIsRoomSheetOpen(false)
+            setIsClaimedSheetOpen(false)
+          }}
+        />
       ) : null}
 
-      <button
-        className={activeRoom ? 'mobile-fab fab-online is-online' : 'mobile-fab fab-online'}
-        type="button"
-        onClick={function() { setIsRoomSheetOpen(true) }}
-      >
-        <span className="fab-dot" aria-hidden="true" />
-        <span className="fab-label">{activeRoom ? `Online · ${activeRoom.displayLabel}` : 'Go Online'}</span>
-      </button>
+      <div className="mobile-fab-row fab-row-split">
+        <button
+          className={activeRoom ? 'mobile-fab fab-online is-online' : 'mobile-fab fab-online'}
+          type="button"
+          onClick={function() {
+            setIsClaimedSheetOpen(false)
+            setIsRoomSheetOpen(true)
+          }}
+        >
+          <span className="fab-dot" aria-hidden="true" />
+          <span className="fab-label">{activeRoom ? `Online · ${activeRoom.displayLabel}` : 'Go Online'}</span>
+        </button>
+        <button
+          className="mobile-fab fab-claimed"
+          type="button"
+          onClick={function() {
+            setIsRoomSheetOpen(false)
+            setIsClaimedSheetOpen(true)
+          }}
+        >
+          <span className="fab-emoji" aria-hidden="true">🎟️</span>
+          <span className="fab-label">Claimed tickets</span>
+          {activeClaimedTickets.length > 0 ? <span className="fab-count">{activeClaimedTickets.length}</span> : null}
+        </button>
+      </div>
 
     </div>
   )
