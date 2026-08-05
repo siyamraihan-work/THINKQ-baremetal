@@ -5,20 +5,12 @@ import {
   clearTeacherActiveRoom,
   completeTicket,
   getMyTickets,
-  getQueueMetrics,
   getQueueTickets,
   getTeacherActiveRoom,
   getTicketLookups,
   heartbeatTeacherActiveRoom,
   setTeacherActiveRoom
 } from '../lib/api'
-
-function waitLabel(metrics) {
-  if (!metrics || metrics.onlineTeacherCount === 0) {
-    return 'Unavailable'
-  }
-  return `${metrics.estimatedWaitMinutes} min`
-}
 
 function formatDateTime(value) {
   if (!value) {
@@ -68,7 +60,6 @@ export default function TutorDashboardPage({ user }) {
   const [lookups, setLookups] = useState({ courses: [], locations: [] })
   const [queueTickets, setQueueTickets] = useState([])
   const [claimedTickets, setClaimedTickets] = useState([])
-  const [metrics, setMetrics] = useState(null)
   const [activeRoom, setActiveRoom] = useState(null)
   const [activationForm, setActivationForm] = useState({ buildingId: '', roomId: '' })
   const [message, setMessage] = useState('')
@@ -98,20 +89,17 @@ export default function TutorDashboardPage({ user }) {
   async function refreshRoomQueue(room) {
     if (!room || !room.roomId) {
       setQueueTickets([])
-      setMetrics(null)
       await refreshClaimedTickets()
       return
     }
 
-    const [queueData, mineData, metricData] = await Promise.all([
+    const [queueData, mineData] = await Promise.all([
       getQueueTickets({ buildingId: room.buildingId, roomId: room.roomId }),
-      getMyTickets(),
-      getQueueMetrics({ buildingId: room.buildingId, roomId: room.roomId })
+      getMyTickets()
     ])
 
     setQueueTickets(queueData)
     setClaimedTickets(mineData)
-    setMetrics(metricData)
   }
 
   useEffect(function() {
@@ -206,7 +194,6 @@ export default function TutorDashboardPage({ user }) {
         if (error.status === 404) {
           setActiveRoom(null)
           setQueueTickets([])
-          setMetrics(null)
           setMessage('Your active room session expired. Choose a room again to go back online.')
           refreshClaimedTickets().catch(function() {})
           return
@@ -279,7 +266,6 @@ export default function TutorDashboardPage({ user }) {
       setActiveRoom(null)
       setIsRoomSheetOpen(false)
       setQueueTickets([])
-      setMetrics(null)
       await refreshClaimedTickets()
       setMessage('You are no longer active in any room.')
     } catch (error) {
@@ -400,20 +386,6 @@ export default function TutorDashboardPage({ user }) {
             <div>
               <span className="card-eyebrow">Queue</span>
               <h2>{activeRoom ? `Open tickets for ${activeRoom.displayLabel}` : 'Open tickets'}</h2>
-            </div>
-            <div className="queue-metrics-bar compact-metrics-bar">
-              <div className="metric-pill metric-pill-compact">
-                <span className="metric-label">Tutors online</span>
-                <strong>{metrics?.onlineTeacherCount ?? '—'}</strong>
-              </div>
-              <div className="metric-pill metric-pill-compact">
-                <span className="metric-label">Students waiting</span>
-                <strong>{metrics?.queueCount ?? 0}</strong>
-              </div>
-              <div className="metric-pill metric-pill-compact">
-                <span className="metric-label">Estimated wait</span>
-                <strong>{waitLabel(metrics)}</strong>
-              </div>
             </div>
           </div>
 

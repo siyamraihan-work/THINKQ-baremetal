@@ -1995,17 +1995,6 @@ body.sheet-lock {
     padding: 14px 16px 128px;
   }
 
-  .metric-pill {
-    min-width: 0;
-    flex: 1 1 auto;
-    padding: 10px 12px;
-  }
-
-  .compact-metrics-bar {
-    justify-content: stretch;
-    width: 100%;
-  }
-
   /* Cards that become bottom sheets on the phone */
   .mobile-sheet {
     position: fixed;

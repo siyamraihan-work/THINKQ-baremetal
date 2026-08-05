@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppHeader from '../components/AppHeader'
-import { createTicket, getMyTickets, getQueueMetrics, getTicketLookups, submitTicketFeedback } from '../lib/api'
+import { createTicket, getMyTickets, getTicketLookups, submitTicketFeedback } from '../lib/api'
 
 const ISSUE_TYPES = [
   { value: 'HOMEWORK', label: 'Homework' },
@@ -15,13 +15,6 @@ function formatDateTime(value) {
     return '—'
   }
   return new Date(value).toLocaleString()
-}
-
-function waitLabel(metrics) {
-  if (!metrics || metrics.onlineTeacherCount === 0) {
-    return 'Unavailable'
-  }
-  return `${metrics.estimatedWaitMinutes} min`
 }
 
 function buildUniqueBuildings(locations) {
@@ -63,7 +56,6 @@ function buildUniqueRooms(locations, buildingId) {
 
 export default function StudentDashboardPage({ user }) {
   const [lookups, setLookups] = useState({ courses: [], locations: [] })
-  const [metrics, setMetrics] = useState(null)
   const [tickets, setTickets] = useState([])
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -271,18 +263,6 @@ export default function StudentDashboardPage({ user }) {
     }
   }, [availableTables, form.locationId])
 
-  useEffect(function() {
-    if (!form.buildingId || !form.roomId) {
-      return
-    }
-
-    getQueueMetrics({ buildingId: form.buildingId, roomId: form.roomId }).then(function(metricData) {
-      setMetrics(metricData)
-    }).catch(function(error) {
-      setMessage(error.message || 'Unable to load room metrics.')
-    })
-  }, [form.buildingId, form.roomId])
-
   async function handleSubmit(event) {
     event.preventDefault()
     setIsSaving(true)
@@ -421,16 +401,6 @@ export default function StudentDashboardPage({ user }) {
             <div>
               <span className="card-eyebrow">Queue Screen</span>
               <h2>Your queue activity</h2>
-            </div>
-            <div className="queue-metrics-bar compact-metrics-bar">
-              <div className="metric-pill metric-pill-compact">
-                <span className="metric-label">Tutors online</span>
-                <strong>{metrics?.onlineTeacherCount ?? '—'}</strong>
-              </div>
-              <div className="metric-pill metric-pill-compact">
-                <span className="metric-label">Estimated wait</span>
-                <strong>{waitLabel(metrics)}</strong>
-              </div>
             </div>
           </div>
 
