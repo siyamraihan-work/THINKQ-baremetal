@@ -155,7 +155,7 @@ validate_nginx_config() {
   server_name_count="$(grep -Ec "server_name[[:space:]]+$PUBLIC_HOSTNAME;" "$conf_path")"
   [ "$server_name_count" = "1" ] \
     || fail "Nginx config should contain exactly one server_name entry for $PUBLIC_HOSTNAME; found $server_name_count"
-  if grep -Eq "listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://" "$conf_path"; then
+  if grep -Eq '^[[:space:]]*(listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://)' "$conf_path"; then
     fail "Nginx config must not terminate TLS or redirect HTTP to HTTPS; HTTPS terminates at the ALB"
   fi
   grep -Fq 'map $http_x_forwarded_proto $thinkq_forwarded_proto' "$conf_path" \
@@ -183,7 +183,7 @@ validate_nginx_config() {
     rm -f "$effective_config"
     fail "Effective Nginx configuration should contain exactly one server_name entry for $PUBLIC_HOSTNAME; found $effective_server_name_count"
   fi
-  if grep -Eq "listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://" "$effective_config"; then
+  if grep -Eq '^[[:space:]]*(listen[[:space:]]+443|ssl_certificate|ssl_certificate_key|return[[:space:]]+301[[:space:]]+https://)' "$effective_config"; then
     rm -f "$effective_config"
     fail "Effective Nginx configuration must not terminate TLS or redirect HTTP to HTTPS; HTTPS terminates at the ALB"
   fi
@@ -226,14 +226,14 @@ SAML_CERT_PATH_VALUE="$(read_env_value "$ENV_DIR/auth-user-service.env" "SAML_CE
   || fail "Unable to read SAML_CERT_PATH from $ENV_DIR/auth-user-service.env"
 validate_idp_certificate "$SAML_CERT_PATH_VALUE"
 
-install -d -o thinkq -g thinkq "$VENV_ROOT" "$APP_ROOT/exports"
-chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy" "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs"
+install -d -o thinkq -g thinkq "$VENV_ROOT" "$APP_ROOT/exports" "$APP_ROOT/.m2" "$APP_ROOT/.m2/repository"
+chown -R thinkq:thinkq "$APP_ROOT/frontend" "$APP_ROOT/backend" "$APP_ROOT/deploy" "$APP_ROOT/env" "$APP_ROOT/exports" "$APP_ROOT/venvs" "$APP_ROOT/.m2"
 
 echo "Verifying Java 21 runtime..."
 "$JAVA21_HOME/bin/java" -version
 
 echo "Verifying Maven is using Java 21..."
-run_as_thinkq "$APP_ROOT" "export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:\$PATH' && test \"\$(pwd)\" != /home/ec2-user && mvn -version"
+run_as_thinkq "$APP_ROOT" "export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' && test \"\$(pwd)\" != /home/ec2-user && /usr/bin/mvn -version"
 
 echo "Building frontend..."
 run_as_thinkq "$FRONTEND_DIR" "npm ci && npm run build"
@@ -249,7 +249,7 @@ run_as_thinkq "$BACKEND_DIR/analytics-service" "$(shell_quote "$VENV_DIR/bin/pip
 run_as_thinkq "$BACKEND_DIR/analytics-service" "$(shell_quote "$VENV_DIR/bin/pip") install -r $(shell_quote "$BACKEND_DIR/analytics-service/requirements.txt")"
 
 echo "Building Java data service..."
-run_as_thinkq "$MAVEN_PROJECT_DIR" "export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:\$PATH' && test \"\$(pwd)\" != /home/ec2-user && mvn clean verify"
+run_as_thinkq "$MAVEN_PROJECT_DIR" "export JAVA_HOME='$JAVA21_HOME' && export PATH='$JAVA21_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' && test \"\$(pwd)\" != /home/ec2-user && /usr/bin/mvn clean verify"
 
 echo "Installing systemd units..."
 APP_ROOT_ESCAPED="$(escape_sed_replacement "$APP_ROOT")"

@@ -109,6 +109,7 @@ That script will:
 - install frontend dependencies and build `frontend/dist`
 - install Node service dependencies
 - create or repair the analytics virtualenv with `python3.11` and install Python requirements through that virtualenv
+- create the `thinkq`-owned Maven local repository at `/opt/thinkq/.m2/repository`
 - build the Java data service JAR as `thinkq` from the data-service Maven project directory
 - install systemd unit files
 - install the ALB-compatible Nginx HTTP config at `/etc/nginx/conf.d/thinkq.conf`

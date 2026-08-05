@@ -23,6 +23,7 @@ This package is cleaned for **Amazon Linux 2023 bare-metal deployment**.
 - `/opt/thinkq/certs/idp-signing.pem` for the IdP signing certificate
 - `/opt/thinkq/exports` for analytics ZIP exports
 - `/opt/thinkq/venvs/analytics` for the analytics Python virtualenv
+- `/opt/thinkq/.m2/repository` for the `thinkq` user's Maven local repository
 - `/etc/nginx/conf.d/thinkq.conf` for the Nginx site config
 
 ## Removed from this package
