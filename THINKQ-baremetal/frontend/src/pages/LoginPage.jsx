@@ -1,28 +1,22 @@
 import { useNavigate } from 'react-router-dom'
 import HeroPanel from '../components/HeroPanel'
 import AuthPageLayout from '../layouts/AuthPageLayout'
+import { useAuth } from '../context/AuthContext'
+import { roleHomePath } from '../lib/roles'
 import { devLogin, startLogin } from '../lib/api'
+import TTlogo from '../assets/TTlogo.png'
 
 const devAuthEnabled = import.meta.env.VITE_DEV_AUTH_ENABLED === 'true'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { refreshUser } = useAuth()
 
   async function handleDevLogin(user) {
     try {
       await devLogin(user)
-
-      if (user.role === 'ADMIN') {
-        navigate('/admin/dashboard', { replace: true })
-        return
-      }
-
-      if (user.role === 'TEACHER') {
-        navigate('/teacher/dashboard', { replace: true })
-        return
-      }
-
-      navigate('/student/dashboard', { replace: true })
+      await refreshUser()
+      navigate(roleHomePath(user.role), { replace: true })
     } catch (error) {
       console.error(error)
       alert(error.message || 'Dev login failed')
@@ -36,6 +30,8 @@ export default function LoginPage() {
 
         <section className="login-panel">
           <div className="login-card-glow" />
+
+          <img src={TTlogo} alt="Think Tank Logo" className="login-mobile-logo" />
 
           <div className="login-header">
             <span className="chip">Secure access</span>
@@ -74,14 +70,14 @@ export default function LoginPage() {
                   type="button"
                   onClick={() =>
                     handleDevLogin({
-                      name: 'ThinkQ Teacher',
+                      name: 'ThinkQ Tutor',
                       email: 'teacher@test.local',
                       oid: 'dev-teacher-oid',
                       role: 'TEACHER'
                     })
                   }
                 >
-                  Teacher
+                  Tutor
                 </button>
 
                 <button

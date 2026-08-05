@@ -3,16 +3,9 @@ import TTlogo from '../assets/TTlogo.png'
 export default function HeroPanel() {
   return (
     <section className="hero-panel">
-      <span className="eyebrow">ThinkQ</span>
-
-      <div className="brand-lockup">
-        <div className="logo-card">
-          <img src={TTlogo} alt="Think Tank Logo" className="TTlogo" />
-
-          <div>
-            <p>Smarter tutoring queues for students and staff.</p>
-          </div>
-        </div>
+      <div className="hero-logo-stage">
+        <img src={TTlogo} alt="Think Tank Logo" className="TTlogo" />
+        <p className="hero-tagline">Smarter tutoring queues for students and staff.</p>
       </div>
 
       <div className="hero-footer">

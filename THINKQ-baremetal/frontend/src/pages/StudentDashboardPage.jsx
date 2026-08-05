@@ -80,6 +80,7 @@ export default function StudentDashboardPage({ user }) {
   })
   const [feedbackDrafts, setFeedbackDrafts] = useState({})
   const [feedbackPopupTicket, setFeedbackPopupTicket] = useState(null)
+  const [isHelpSheetOpen, setIsHelpSheetOpen] = useState(false)
 
   const groupedSubjects = useMemo(function() {
     const map = new Map()
@@ -165,6 +166,23 @@ export default function StudentDashboardPage({ user }) {
       setMessage(error.message || 'Failed to load student workspace.')
     })
   }, [])
+
+  useEffect(function() {
+    if (!isHelpSheetOpen) {
+      return
+    }
+    document.body.classList.add('sheet-lock')
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsHelpSheetOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return function() {
+      document.body.classList.remove('sheet-lock')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isHelpSheetOpen])
 
   useEffect(function() {
     const stream = new EventSource('/events/students/' + user.id)
@@ -285,6 +303,7 @@ export default function StudentDashboardPage({ user }) {
           notes: ''
         }
       })
+      setIsHelpSheetOpen(false)
       setMessage('Your ticket has been added to the queue.')
     } catch (error) {
       setMessage(error.message || 'Unable to create ticket.')
@@ -315,8 +334,15 @@ export default function StudentDashboardPage({ user }) {
         subtitle=""
       />
 
+      {message ? <div className="inline-status-message page-status-message">{message}</div> : null}
+
       <div className="student-dashboard-grid">
-        <section className="dashboard-card form-card">
+        <section className={isHelpSheetOpen ? 'dashboard-card form-card mobile-sheet sheet-open' : 'dashboard-card form-card mobile-sheet'}>
+          <div className="sheet-head">
+            <span className="sheet-grabber" aria-hidden="true" />
+            <button className="sheet-close" type="button" aria-label="Close help form" onClick={function() { setIsHelpSheetOpen(false) }}>×</button>
+          </div>
+
           <div className="card-heading-row">
             <div>
               <span className="card-eyebrow">Student Support Request</span>
@@ -388,8 +414,6 @@ export default function StudentDashboardPage({ user }) {
               {isSaving ? 'Submitting...' : 'Help Me'}
             </button>
           </form>
-
-          {message ? <div className="inline-status-message">{message}</div> : null}
         </section>
 
         <section className="dashboard-card queue-card">
@@ -465,6 +489,15 @@ export default function StudentDashboardPage({ user }) {
           </div>
         </section>
       </div>
+
+      {isHelpSheetOpen ? (
+        <div className="mobile-sheet-backdrop" role="presentation" onClick={function() { setIsHelpSheetOpen(false) }} />
+      ) : null}
+
+      <button className="mobile-fab fab-help" type="button" onClick={function() { setIsHelpSheetOpen(true) }}>
+        <span className="fab-emoji" aria-hidden="true">🙋</span>
+        <span className="fab-label">Ask for help</span>
+      </button>
 
       {feedbackPopupTicket ? (
         <div className="feedback-popup-backdrop" role="presentation">

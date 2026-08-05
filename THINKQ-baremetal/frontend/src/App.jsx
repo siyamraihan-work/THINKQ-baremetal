@@ -6,7 +6,7 @@ import LoginPage from './pages/LoginPage'
 import SessionHeartbeat from './components/SessionHeartbeat'
 import UnauthorizedPage from './pages/UnauthorizedPage'
 import StudentDashboardPage from './pages/StudentDashboardPage'
-import TeacherDashboardPage from './pages/TeacherDashboardPage'
+import TutorDashboardPage from './pages/TutorDashboardPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 
 function HomeRedirect() {
@@ -45,13 +45,14 @@ export default function App() {
           }
         />
         <Route
-          path="/teacher/dashboard"
+          path="/tutor/dashboard"
           element={
             <ProtectedRoute roles={['TEACHER']}>
-              <TeacherDashboardPage user={user} />
+              <TutorDashboardPage user={user} />
             </ProtectedRoute>
           }
         />
+        <Route path="/teacher/dashboard" element={<Navigate to="/tutor/dashboard" replace />} />
         <Route
           path="/admin/dashboard"
           element={

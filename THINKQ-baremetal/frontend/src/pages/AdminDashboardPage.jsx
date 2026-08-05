@@ -435,8 +435,12 @@ export default function AdminDashboardPage({ user }) {
                       <div className="record-actions-row">
                         <span className={item.loggedIn ? 'presence-badge is-online' : 'presence-badge'}>{item.loggedIn ? 'Online' : 'Offline'}</span>
                         <select value={item.role} onChange={function(event) { handleRoleChange(item.id, event.target.value) }}>
-                          {['STUDENT', 'TEACHER', 'ADMIN'].map(function(role) {
-                            return <option key={role} value={role}>{role}</option>
+                          {[
+                            { value: 'STUDENT', label: 'Student' },
+                            { value: 'TEACHER', label: 'Tutor' },
+                            { value: 'ADMIN', label: 'Admin' }
+                          ].map(function(role) {
+                            return <option key={role.value} value={role.value}>{role.label}</option>
                           })}
                         </select>
                       </div>
@@ -584,7 +588,7 @@ export default function AdminDashboardPage({ user }) {
                 <div>
                   <span className="card-eyebrow">Analytics</span>
                   <h2>Operational ticket analytics</h2>
-                  <p className="admin-panel-copy">Ratings, queue volume, performance by location and teacher, and recent student feedback in one admin view.</p>
+                  <p className="admin-panel-copy">Ratings, queue volume, performance by location and tutor, and recent student feedback in one admin view.</p>
                 </div>
                 <button className="secondary-action-button" type="button" onClick={function() { refreshAnalytics().catch(function(error) { setMessage(error.message || 'Unable to refresh analytics.') }) }}>
                   {loadingAnalytics ? 'Refreshing...' : 'Refresh analytics'}
@@ -661,15 +665,15 @@ export default function AdminDashboardPage({ user }) {
                     <article className="analytics-panel-card">
                       <div className="analytics-panel-header">
                         <div>
-                          <span className="card-eyebrow">Teachers</span>
-                          <h3>Teacher performance</h3>
+                          <span className="card-eyebrow">Tutors</span>
+                          <h3>Tutor performance</h3>
                         </div>
                       </div>
                       <div className="analytics-table-wrap">
                         <table className="analytics-table">
                           <thead>
                             <tr>
-                              <th>Teacher</th>
+                              <th>Tutor</th>
                               <th>Handled</th>
                               <th>Completed</th>
                               <th>Avg rating</th>

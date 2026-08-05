@@ -16,7 +16,7 @@ export default function LogoutDock() {
   return (
     <button className="logout-dock" type="button" onClick={handleLogout} title="Logout">
       <span className="logout-dock-icon">↩</span>
-      <span>Logout</span>
+      <span className="logout-dock-label">Logout</span>
     </button>
   )
 }

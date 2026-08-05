@@ -64,7 +64,7 @@ function buildUniqueRooms(locations, buildingId) {
   })
 }
 
-export default function TeacherDashboardPage({ user }) {
+export default function TutorDashboardPage({ user }) {
   const [lookups, setLookups] = useState({ courses: [], locations: [] })
   const [queueTickets, setQueueTickets] = useState([])
   const [claimedTickets, setClaimedTickets] = useState([])
@@ -74,6 +74,7 @@ export default function TeacherDashboardPage({ user }) {
   const [message, setMessage] = useState('')
   const [resolutionDrafts, setResolutionDrafts] = useState({})
   const [isActivating, setIsActivating] = useState(false)
+  const [isRoomSheetOpen, setIsRoomSheetOpen] = useState(false)
 
   const availableBuildings = useMemo(function() {
     return buildUniqueBuildings(lookups.locations)
@@ -142,9 +143,26 @@ export default function TeacherDashboardPage({ user }) {
     }
 
     loadDashboard().catch(function(error) {
-      setMessage(error.message || 'Failed to load teacher dashboard.')
+      setMessage(error.message || 'Failed to load tutor dashboard.')
     })
   }, [])
+
+  useEffect(function() {
+    if (!isRoomSheetOpen) {
+      return
+    }
+    document.body.classList.add('sheet-lock')
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsRoomSheetOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return function() {
+      document.body.classList.remove('sheet-lock')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isRoomSheetOpen])
 
   useEffect(function() {
     const exists = availableBuildings.some(function(building) {
@@ -245,6 +263,7 @@ export default function TeacherDashboardPage({ user }) {
         roomId: Number(activationForm.roomId)
       })
       setActiveRoom(room)
+      setIsRoomSheetOpen(false)
       await refreshRoomQueue(room)
       setMessage(`You are now active in ${room.displayLabel}.`)
     } catch (error) {
@@ -258,6 +277,7 @@ export default function TeacherDashboardPage({ user }) {
     try {
       await clearTeacherActiveRoom()
       setActiveRoom(null)
+      setIsRoomSheetOpen(false)
       setQueueTickets([])
       setMetrics(null)
       await refreshClaimedTickets()
@@ -296,8 +316,15 @@ export default function TeacherDashboardPage({ user }) {
         subtitle=""
       />
 
+      {message ? <div className="inline-status-message page-status-message">{message}</div> : null}
+
       <div className="teacher-layout-grid">
-        <section className="dashboard-card">
+        <section className={isRoomSheetOpen ? 'dashboard-card activation-card mobile-sheet sheet-open' : 'dashboard-card activation-card mobile-sheet'}>
+          <div className="sheet-head">
+            <span className="sheet-grabber" aria-hidden="true" />
+            <button className="sheet-close" type="button" aria-label="Close room panel" onClick={function() { setIsRoomSheetOpen(false) }}>×</button>
+          </div>
+
           <div className="card-heading-row">
             <div>
               <span className="card-eyebrow">Room Activation</span>
@@ -464,10 +491,21 @@ export default function TeacherDashboardPage({ user }) {
               )
             })}
           </div>
-
-          {message ? <div className="inline-status-message top-gap-small">{message}</div> : null}
         </section>
       </div>
+
+      {isRoomSheetOpen ? (
+        <div className="mobile-sheet-backdrop" role="presentation" onClick={function() { setIsRoomSheetOpen(false) }} />
+      ) : null}
+
+      <button
+        className={activeRoom ? 'mobile-fab fab-online is-online' : 'mobile-fab fab-online'}
+        type="button"
+        onClick={function() { setIsRoomSheetOpen(true) }}
+      >
+        <span className="fab-dot" aria-hidden="true" />
+        <span className="fab-label">{activeRoom ? `Online · ${activeRoom.displayLabel}` : 'Go Online'}</span>
+      </button>
 
     </div>
   )

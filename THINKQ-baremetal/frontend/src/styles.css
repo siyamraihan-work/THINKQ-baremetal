@@ -1810,3 +1810,346 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   THINKQ FRONTEND V2 — mobile-first refresh
+   ---------------------------------------------------------
+   Login hero rework (logo as the centerpiece), phone-only
+   layouts, bottom-sheet forms, floating action buttons, and
+   a compact top bar. Appended last on purpose so it wins the
+   cascade without touching the sections above.
+   ========================================================= */
+
+/* ---- Login hero: the logo owns the panel ---- */
+
+.hero-logo-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: 20px 0;
+}
+
+.TTlogo {
+  width: min(82%, 400px);
+  height: auto;
+  border-radius: 36px;
+  padding: 28px;
+  box-shadow: 0 34px 80px rgba(0, 0, 0, 0.34);
+  animation: logo-float 6.5s ease-in-out infinite;
+}
+
+.hero-tagline {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  color: var(--auth-text-soft);
+  font-size: 1.12rem;
+  line-height: 1.7;
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+/* Small logo inside the login card — phone only */
+.login-mobile-logo {
+  display: none;
+}
+
+/* ---- Shared v2 building blocks (hidden on desktop) ---- */
+
+.sheet-head,
+.mobile-fab,
+.mobile-sheet-backdrop {
+  display: none;
+}
+
+body.sheet-lock {
+  overflow: hidden;
+}
+
+.page-status-message {
+  margin: 0 0 22px;
+  box-shadow: 0 14px 34px rgba(3, 15, 45, 0.22);
+}
+
+/* ---- Phone layout (≤ 760px) ---- */
+
+@media (max-width: 760px) {
+
+  /* Login: drop the hero entirely, center a single clean card */
+  .hero-panel {
+    display: none;
+  }
+
+  .brand-bar {
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .content-wrap {
+    padding-top: 18px;
+  }
+
+  .auth-card {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    border-radius: 30px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+  }
+
+  .login-panel {
+    margin: 0;
+    padding: 34px 24px 30px;
+    border-radius: 30px;
+    text-align: center;
+  }
+
+  .login-mobile-logo {
+    display: block;
+    width: 148px;
+    height: auto;
+    margin: 0 auto 20px;
+    background: #f4f7ff;
+    border: 1px solid #e3eafc;
+    border-radius: 26px;
+    padding: 16px;
+    box-shadow: 0 18px 40px rgba(16, 40, 100, 0.16);
+  }
+
+  .login-header .chip {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .login-header h2 {
+    font-size: 2.6rem;
+  }
+
+  /* Compact top bar: small brand, tiny actions in the corner */
+  .app-topbar {
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .app-topbar-actions {
+    width: auto;
+    gap: 8px;
+    flex: none;
+  }
+
+  .app-brand {
+    font-size: 1.55rem;
+    line-height: 1.1;
+  }
+
+  .app-page-title {
+    margin: 2px 0 0;
+    font-size: 1.02rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .app-page-subtitle {
+    display: none;
+  }
+
+  .queue-launch-button,
+  .logout-dock {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 13px;
+    justify-content: center;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  }
+
+  .queue-launch-icon {
+    font-size: 1.05rem;
+  }
+
+  .logout-dock-icon {
+    font-size: 1rem;
+  }
+
+  .logout-dock-label {
+    display: none;
+  }
+
+  .dashboard-screen {
+    padding: 14px 16px 128px;
+  }
+
+  .metric-pill {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 10px 12px;
+  }
+
+  .compact-metrics-bar {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  /* Cards that become bottom sheets on the phone */
+  .mobile-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 46;
+    margin: 0;
+    border-radius: 26px 26px 0 0;
+    max-height: 88dvh;
+    overflow-y: auto;
+    padding: 12px 20px calc(26px + env(safe-area-inset-bottom));
+    transform: translateY(110%);
+    visibility: hidden;
+    transition:
+      transform 0.34s cubic-bezier(0.32, 0.72, 0.16, 1),
+      visibility 0s linear 0.34s;
+    box-shadow: 0 -26px 70px rgba(2, 8, 28, 0.5);
+  }
+
+  .mobile-sheet.sheet-open {
+    transform: translateY(0);
+    visibility: visible;
+    transition: transform 0.34s cubic-bezier(0.32, 0.72, 0.16, 1);
+  }
+
+  .sheet-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0 12px;
+    background: #ffffff;
+  }
+
+  .sheet-grabber {
+    width: 46px;
+    height: 5px;
+    border-radius: 999px;
+    background: #d9e0ef;
+  }
+
+  .sheet-close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e2e8f6;
+    border-radius: 999px;
+    background: #f4f6fc;
+    color: #3c4a6b;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .mobile-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: rgba(4, 10, 30, 0.58);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: backdrop-fade 0.25s ease;
+  }
+
+  @keyframes backdrop-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Floating action buttons */
+  .mobile-fab {
+    position: fixed;
+    left: 50%;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100% - 32px);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 26px;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .mobile-fab:active {
+    transform: translateX(-50%) scale(0.97);
+  }
+
+  .fab-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fab-emoji {
+    font-size: 1.3rem;
+  }
+
+  .fab-help {
+    background: linear-gradient(135deg, #2f6bff 0%, #7c4dff 100%);
+    animation: fab-glow 2.8s ease-in-out infinite;
+  }
+
+  @keyframes fab-glow {
+    0%, 100% { box-shadow: 0 14px 34px rgba(47, 91, 255, 0.42); }
+    50% { box-shadow: 0 20px 54px rgba(104, 78, 255, 0.62); }
+  }
+
+  .fab-online {
+    background: linear-gradient(135deg, #1f5eff 0%, #0e43d1 100%);
+    box-shadow: 0 16px 40px rgba(31, 94, 255, 0.48);
+  }
+
+  .fab-online .fab-dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .fab-online.is-online {
+    background: linear-gradient(135deg, #0ba360 0%, #2ec98a 100%);
+    box-shadow: 0 16px 40px rgba(14, 150, 92, 0.46);
+  }
+
+  .fab-online.is-online .fab-dot {
+    background: #eafff5;
+    animation: dot-pulse 1.9s ease-in-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+    50% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.12); }
+  }
+}
