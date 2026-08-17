@@ -255,6 +255,10 @@ public class DataFacadeService {
 
     @Transactional
     public TicketResponse createTicket(CreateTicketRequest request) {
+        if (ticketRepository.existsByStudentIdAndStatusIn(request.studentId(), List.of(TicketStatus.IN_QUEUE, TicketStatus.ASSIGNED))) {
+            throw new IllegalStateException("You already have an open ticket. Please delete it or wait for it to be completed before creating another one.");
+        }
+
         CourseEntity course = findCourse(request.courseId());
         if (!course.isActive()) {
             throw new IllegalStateException("Selected subject is inactive");
@@ -273,12 +277,16 @@ public class DataFacadeService {
         ticket.setNotes(request.notes() == null ? "" : request.notes().trim());
         ticket.setPreferredContact(request.preferredContact() == null ? PreferredContact.IN_PERSON : request.preferredContact());
         ticket.setStatus(TicketStatus.IN_QUEUE);
+        ticket.setQueuedAt(OffsetDateTime.now());
 
         return toTicketResponse(ticketRepository.save(ticket));
     }
 
     public List<TicketResponse> getTicketsByStatus(TicketStatus status) {
-        return ticketRepository.findByStatusOrderByCreatedAtAsc(status).stream().map(this::toTicketResponse).toList();
+        List<TicketEntity> tickets = status == TicketStatus.IN_QUEUE
+                ? ticketRepository.findQueueOrdered(status)
+                : ticketRepository.findByStatusOrderByCreatedAtAsc(status);
+        return tickets.stream().map(this::toTicketResponse).toList();
     }
 
     public List<TicketResponse> getTicketsByStudent(Long studentId) {
@@ -328,11 +336,52 @@ public class DataFacadeService {
         }
 
         UserEntity teacher = findUser(request.teacherId());
-        ticket.setTeacher(teacher);
-        ticket.setStatus(TicketStatus.ASSIGNED);
-        ticket.setAcceptedAt(OffsetDateTime.now());
+        int claimed = ticketRepository.claimTicket(ticketId, teacher, OffsetDateTime.now(), TicketStatus.ASSIGNED, TicketStatus.IN_QUEUE);
+        if (claimed == 0) {
+            throw new IllegalStateException("This ticket was just accepted by another tutor");
+        }
+
+        return toTicketResponse(findTicket(ticketId));
+    }
+
+    @Transactional
+    public TicketResponse requeueTicket(Long ticketId, RequeueTicketRequest request) {
+        TicketEntity ticket = findTicket(ticketId);
+        if (ticket.getStatus() != TicketStatus.ASSIGNED) {
+            throw new IllegalStateException("Only assigned tickets can be returned to the queue");
+        }
+
+        if (ticket.getTeacher() == null || !ticket.getTeacher().getId().equals(request.teacherId())) {
+            throw new IllegalStateException("Only the assigned tutor can return this ticket to the queue");
+        }
+
+        ticket.setTeacher(null);
+        ticket.setStatus(TicketStatus.IN_QUEUE);
+        ticket.setAcceptedAt(null);
+
+        OffsetDateTime frontOfQueue = ticketRepository.findQueueOrdered(TicketStatus.IN_QUEUE).stream()
+                .map(queued -> queued.getQueuedAt() != null ? queued.getQueuedAt() : queued.getCreatedAt())
+                .min(OffsetDateTime::compareTo)
+                .map(earliest -> earliest.minusSeconds(1))
+                .orElse(OffsetDateTime.now());
+        ticket.setQueuedAt(frontOfQueue);
 
         return toTicketResponse(ticketRepository.save(ticket));
+    }
+
+    @Transactional
+    public TicketResponse deleteTicket(Long ticketId, Long studentId) {
+        TicketEntity ticket = findTicket(ticketId);
+        if (!ticket.getStudent().getId().equals(studentId)) {
+            throw new IllegalStateException("Only the owning student can delete this ticket");
+        }
+        if (ticket.getStatus() == TicketStatus.COMPLETED) {
+            throw new IllegalStateException("Completed tickets cannot be deleted");
+        }
+
+        TicketResponse response = toTicketResponse(ticket);
+        ticketRepository.delete(ticket);
+        return response;
     }
 
     @Transactional
@@ -451,7 +500,9 @@ public class DataFacadeService {
                 ticket.getFeedbackComment(),
                 ticket.getCreatedAt(),
                 ticket.getAcceptedAt(),
-                ticket.getCompletedAt()
+                ticket.getCompletedAt(),
+                ticket.getLocation().getResolvedRoomId(),
+                ticket.getLocation().getBuildingId()
         );
     }
 

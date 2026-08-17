@@ -9,6 +9,7 @@ import {
   getTeacherActiveRoom,
   getTicketLookups,
   heartbeatTeacherActiveRoom,
+  requeueTicket,
   setTeacherActiveRoom
 } from '../lib/api'
 
@@ -61,6 +62,7 @@ export default function TutorDashboardPage({ user }) {
   const [queueTickets, setQueueTickets] = useState([])
   const [claimedTickets, setClaimedTickets] = useState([])
   const [activeRoom, setActiveRoom] = useState(null)
+  const [offers, setOffers] = useState([])
   const [activationForm, setActivationForm] = useState({ buildingId: '', roomId: '' })
   const [message, setMessage] = useState('')
   const [resolutionDrafts, setResolutionDrafts] = useState({})
@@ -81,6 +83,15 @@ export default function TutorDashboardPage({ user }) {
       return ticket.status === 'ASSIGNED'
     })
   }, [claimedTickets])
+
+  const visibleOffers = useMemo(function() {
+    if (!activeRoom || !activeRoom.roomId) {
+      return []
+    }
+    return offers.filter(function(offer) {
+      return Number(offer.roomId) === Number(activeRoom.roomId)
+    })
+  }, [offers, activeRoom?.roomId])
 
   async function refreshClaimedTickets() {
     const mineData = await getMyTickets()
@@ -196,6 +207,7 @@ export default function TutorDashboardPage({ user }) {
         if (error.status === 404) {
           setActiveRoom(null)
           setQueueTickets([])
+          setOffers([])
           setMessage('Your active room session expired. Choose a room again to go back online.')
           refreshClaimedTickets().catch(function() {})
           return
@@ -225,6 +237,24 @@ export default function TutorDashboardPage({ user }) {
       }
       setMessage(payload.message || 'Queue updated.')
       handleRefresh()
+    })
+
+    teacherStream.addEventListener('ticketOffer', function(event) {
+      const ticket = JSON.parse(event.data)
+      setOffers(function(previous) {
+        if (previous.some(function(item) { return Number(item.id) === Number(ticket.id) })) {
+          return previous
+        }
+        return previous.concat(ticket)
+      })
+      handleRefresh()
+    })
+
+    teacherStream.addEventListener('ticketOfferResolved', function(event) {
+      const payload = JSON.parse(event.data)
+      setOffers(function(previous) {
+        return previous.filter(function(item) { return Number(item.id) !== Number(payload.ticketId) })
+      })
     })
 
     if (activeRoom && activeRoom.roomId) {
@@ -268,6 +298,7 @@ export default function TutorDashboardPage({ user }) {
       setActiveRoom(null)
       setIsRoomSheetOpen(false)
       setQueueTickets([])
+      setOffers([])
       await refreshClaimedTickets()
       setMessage('You are no longer active in any room.')
     } catch (error) {
@@ -278,10 +309,44 @@ export default function TutorDashboardPage({ user }) {
   async function handleAccept(ticketId) {
     try {
       await acceptTicket(ticketId)
+      handleDismissOffer(ticketId)
       setMessage('Ticket accepted successfully.')
       await refreshRoomQueue(activeRoom)
     } catch (error) {
       setMessage(error.message || 'Unable to accept ticket.')
+    }
+  }
+
+  function handleDismissOffer(ticketId) {
+    setOffers(function(previous) {
+      return previous.filter(function(item) { return Number(item.id) !== Number(ticketId) })
+    })
+  }
+
+  async function handleAcceptOffer(ticketId) {
+    try {
+      await acceptTicket(ticketId)
+      handleDismissOffer(ticketId)
+      setMessage('Ticket accepted successfully.')
+    } catch (error) {
+      handleDismissOffer(ticketId)
+      setMessage(error.message || 'Unable to accept ticket.')
+    }
+
+    await refreshRoomQueue(activeRoom).catch(function() {})
+  }
+
+  async function handleRequeue(ticketId) {
+    const confirmed = window.confirm('Return this ticket to the queue? Another tutor will be able to accept it.')
+    if (!confirmed) {
+      return
+    }
+    try {
+      await requeueTicket(ticketId)
+      setMessage('Ticket returned to the queue.')
+      await refreshRoomQueue(activeRoom)
+    } catch (error) {
+      setMessage(error.message || 'Unable to return the ticket to the queue.')
     }
   }
 
@@ -302,6 +367,7 @@ export default function TutorDashboardPage({ user }) {
       <AppHeader
         title={`Welcome ${user.name}`}
         subtitle=""
+        queueCount={activeRoom ? queueTickets.length : null}
       />
 
       {message ? <div className="inline-status-message page-status-message">{message}</div> : null}
@@ -454,8 +520,9 @@ export default function TutorDashboardPage({ user }) {
                     <textarea
                       value={resolutionDrafts[ticket.id] || ''}
                       onChange={function(event) {
+                        const nextValue = event.target.value
                         setResolutionDrafts(function(previous) {
-                          return { ...previous, [ticket.id]: event.target.value }
+                          return { ...previous, [ticket.id]: nextValue }
                         })
                       }}
                       placeholder="Add a short summary before marking the ticket complete."
@@ -464,6 +531,9 @@ export default function TutorDashboardPage({ user }) {
                   <div className="teacher-ticket-actions">
                     <button className="help-button complete-button" type="button" onClick={function() { handleComplete(ticket.id) }}>
                       Mark complete
+                    </button>
+                    <button className="requeue-button" type="button" onClick={function() { handleRequeue(ticket.id) }}>
+                      Return to queue
                     </button>
                   </div>
                 </article>
@@ -509,6 +579,31 @@ export default function TutorDashboardPage({ user }) {
           {activeClaimedTickets.length > 0 ? <span className="fab-count">{activeClaimedTickets.length}</span> : null}
         </button>
       </div>
+
+      {visibleOffers.length > 0 ? (
+        <div className="offer-stack">
+          {visibleOffers.map(function(offer) {
+            return (
+              <article className="offer-card" key={offer.id}>
+                <div className="offer-head">
+                  <span className="offer-eyebrow">New help request</span>
+                  <button className="offer-dismiss-button" type="button" aria-label="Dismiss notification" onClick={function() { handleDismissOffer(offer.id) }}>×</button>
+                </div>
+                <div className="offer-student">{offer.studentName}</div>
+                <div className="offer-meta">
+                  <span className="offer-meta-row"><strong>Subject:</strong> {offer.courseLabel}</span>
+                  <span className="offer-meta-row"><strong>Location:</strong> {offer.locationLabel}</span>
+                  <span className="offer-meta-row"><strong>Topic:</strong> {String(offer.issueType || '').replace('_', ' ')}</span>
+                </div>
+                {offer.notes ? <p className="offer-note">{offer.notes}</p> : null}
+                <div className="offer-actions">
+                  <button className="offer-accept-button" type="button" onClick={function() { handleAcceptOffer(offer.id) }}>Accept ticket</button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
 
     </div>
   )

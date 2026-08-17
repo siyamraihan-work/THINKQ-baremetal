@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import AppHeader from '../components/AppHeader'
-import { createTicket, getMyTickets, getTicketLookups, submitTicketFeedback } from '../lib/api'
+import StarRating from '../components/StarRating'
+import { createTicket, deleteTicket, getMyTickets, getQueueMetrics, getTicketLookups, submitTicketFeedback } from '../lib/api'
 
 const ISSUE_TYPES = [
   { value: 'HOMEWORK', label: 'Homework' },
@@ -73,6 +74,18 @@ export default function StudentDashboardPage({ user }) {
   const [feedbackDrafts, setFeedbackDrafts] = useState({})
   const [feedbackPopupTicket, setFeedbackPopupTicket] = useState(null)
   const [isHelpSheetOpen, setIsHelpSheetOpen] = useState(false)
+  const [queueCount, setQueueCount] = useState(null)
+
+  const activeTicket = useMemo(function() {
+    return tickets.find(function(ticket) {
+      return ticket.status === 'IN_QUEUE' || ticket.status === 'ASSIGNED'
+    })
+  }, [tickets])
+
+  const countedBuildingId = String(activeTicket && activeTicket.roomId ? activeTicket.buildingId : form.buildingId || '')
+  const countedRoomId = String(activeTicket && activeTicket.roomId ? activeTicket.roomId : form.roomId || '')
+  const queueScopeRef = useRef({ buildingId: '', roomId: '' })
+  queueScopeRef.current = { buildingId: countedBuildingId, roomId: countedRoomId }
 
   const groupedSubjects = useMemo(function() {
     const map = new Map()
@@ -138,19 +151,17 @@ export default function StudentDashboardPage({ user }) {
 
     setLookups(lookupData)
     setTickets(myTickets)
+  }
 
-    if (!form.subject && lookupData.courses.length > 0) {
-      const firstCourse = lookupData.courses.slice().sort(function(a, b) {
-        return `${a.subject}${a.code}`.localeCompare(`${b.subject}${b.code}`)
-      })[0]
-      setForm(function(previous) {
-        return {
-          ...previous,
-          subject: firstCourse.subject,
-          courseId: String(firstCourse.id)
-        }
-      })
+  function refreshQueueCount() {
+    const scope = queueScopeRef.current
+    if (!scope.buildingId || !scope.roomId) {
+      setQueueCount(null)
+      return
     }
+    getQueueMetrics({ buildingId: scope.buildingId, roomId: scope.roomId }).then(function(metrics) {
+      setQueueCount(metrics.queueCount)
+    }).catch(function() {})
   }
 
   useEffect(function() {
@@ -158,6 +169,34 @@ export default function StudentDashboardPage({ user }) {
       setMessage(error.message || 'Failed to load student workspace.')
     })
   }, [])
+
+  useEffect(function() {
+    refreshQueueCount()
+  }, [countedBuildingId, countedRoomId])
+
+  useEffect(function() {
+    if (!countedBuildingId || !countedRoomId) {
+      return
+    }
+
+    const queueStream = new EventSource(`/events/queue?buildingId=${countedBuildingId}&roomId=${countedRoomId}`)
+
+    function handleMetrics(event) {
+      try {
+        const metrics = JSON.parse(event.data)
+        if (metrics && typeof metrics.queueCount === 'number') {
+          setQueueCount(metrics.queueCount)
+        }
+      } catch (error) {
+      }
+    }
+
+    queueStream.addEventListener('queueMetrics', handleMetrics)
+
+    return function() {
+      queueStream.close()
+    }
+  }, [countedBuildingId, countedRoomId])
 
   useEffect(function() {
     if (!isHelpSheetOpen) {
@@ -183,6 +222,7 @@ export default function StudentDashboardPage({ user }) {
       const payload = JSON.parse(event.data)
       setMessage(payload.message || 'Your ticket was updated.')
       refreshAll().catch(function() {})
+      refreshQueueCount()
     })
 
     stream.addEventListener('feedbackRequested', function(event) {
@@ -193,10 +233,11 @@ export default function StudentDashboardPage({ user }) {
         if (previous[ticket.id]) {
           return previous
         }
-        return { ...previous, [ticket.id]: { rating: '5', comment: '' } }
+        return { ...previous, [ticket.id]: { rating: '0', comment: '' } }
       })
       setFeedbackPopupTicket(ticket)
       refreshAll().catch(function() {})
+      refreshQueueCount()
     })
 
     return function() {
@@ -211,11 +252,11 @@ export default function StudentDashboardPage({ user }) {
     const exists = selectedCourses.some(function(course) {
       return String(course.id) === String(form.courseId)
     })
-    if (!exists) {
+    if (!exists && form.courseId) {
       setForm(function(previous) {
         return {
           ...previous,
-          courseId: selectedCourses[0] ? String(selectedCourses[0].id) : ''
+          courseId: ''
         }
       })
     }
@@ -276,6 +317,7 @@ export default function StudentDashboardPage({ user }) {
         preferredContact: form.preferredContact
       })
       await refreshAll()
+      refreshQueueCount()
       setForm(function(previous) {
         return {
           ...previous,
@@ -292,11 +334,30 @@ export default function StudentDashboardPage({ user }) {
     }
   }
 
+  async function handleDeleteTicket(ticketId) {
+    if (!window.confirm('Delete this help request? This cannot be undone.')) {
+      return
+    }
+    try {
+      await deleteTicket(ticketId)
+      await refreshAll()
+      refreshQueueCount()
+      setMessage('Your help request was deleted.')
+    } catch (error) {
+      setMessage(error.message || 'Unable to delete ticket.')
+    }
+  }
+
   async function handleFeedback(ticketId) {
-    const draft = feedbackDrafts[ticketId] || { rating: '5', comment: '' }
+    const draft = feedbackDrafts[ticketId] || { rating: '0', comment: '' }
+    const rating = Number(draft.rating || 0)
+    if (!rating) {
+      setMessage('Pick a star rating before submitting feedback.')
+      return
+    }
     try {
       await submitTicketFeedback(ticketId, {
-        rating: Number(draft.rating || 5),
+        rating,
         comment: draft.comment || ''
       })
       setMessage('Feedback submitted successfully.')
@@ -312,6 +373,7 @@ export default function StudentDashboardPage({ user }) {
       <AppHeader
         title={`Welcome ${user.name}`}
         subtitle=""
+        queueCount={queueCount}
       />
 
       {message ? <div className="inline-status-message page-status-message">{message}</div> : null}
@@ -329,6 +391,12 @@ export default function StudentDashboardPage({ user }) {
               <h2>Create ticket</h2>
             </div>
           </div>
+
+          {activeTicket ? (
+            <div className="form-lock-notice">
+              You already have an open help request for {activeTicket.courseLabel}. Delete it with the × on its card, or wait until a tutor completes it, before submitting another one.
+            </div>
+          ) : null}
 
           <form className="ticket-form" onSubmit={handleSubmit}>
             <label className="field-block">
@@ -359,8 +427,9 @@ export default function StudentDashboardPage({ user }) {
             </label>
 
             <label className="field-block">
-              <span>Subject</span>
+              <span>Subject <span className="field-required">*</span></span>
               <select value={form.subject} onChange={function(event) { setForm({ ...form, subject: event.target.value, courseId: '' }) }} required>
+                <option value="">Select subject</option>
                 {groupedSubjects.map(function(item) {
                   return <option key={item.subject} value={item.subject}>{item.subject}</option>
                 })}
@@ -368,8 +437,9 @@ export default function StudentDashboardPage({ user }) {
             </label>
 
             <label className="field-block">
-              <span>Subject code</span>
+              <span>Subject code <span className="field-required">*</span></span>
               <select value={form.courseId} onChange={function(event) { setForm({ ...form, courseId: event.target.value }) }} required>
+                <option value="">Select subject code</option>
                 {selectedCourses.map(function(course) {
                   return <option key={course.id} value={course.id}>{course.subject}{course.code} — {course.title}</option>
                 })}
@@ -390,7 +460,7 @@ export default function StudentDashboardPage({ user }) {
               <textarea value={form.notes} onChange={function(event) { setForm({ ...form, notes: event.target.value }) }} placeholder="Tell the tutor what you need help with." />
             </label>
 
-            <button className="help-button field-block-wide" type="submit" disabled={isSaving || !form.locationId || !form.courseId}>
+            <button className="help-button field-block-wide" type="submit" disabled={isSaving || Boolean(activeTicket) || !form.locationId || !form.subject || !form.courseId}>
               {isSaving ? 'Submitting...' : 'Help Me'}
             </button>
           </form>
@@ -408,10 +478,21 @@ export default function StudentDashboardPage({ user }) {
             {tickets.length === 0 ? <div className="queue-empty-state">No tickets yet. Submit a request to join the support queue.</div> : null}
             {tickets.map(function(ticket) {
               const needsFeedback = ticket.status === 'COMPLETED' && !ticket.rating
-              const draft = feedbackDrafts[ticket.id] || { rating: '5', comment: '' }
+              const draft = feedbackDrafts[ticket.id] || { rating: '0', comment: '' }
 
               return (
                 <article className="queue-ticket-card" key={ticket.id}>
+                  {ticket.status !== 'COMPLETED' ? (
+                    <button
+                      className="ticket-delete-button"
+                      type="button"
+                      aria-label="Delete this ticket"
+                      title="Delete this ticket"
+                      onClick={function() { handleDeleteTicket(ticket.id) }}
+                    >
+                      ×
+                    </button>
+                  ) : null}
                   <div className="queue-ticket-topline">
                     <strong>{ticket.courseLabel}</strong>
                     <span className={`ticket-status status-${String(ticket.status).toLowerCase()}`}>{ticket.status.replace('_', ' ')}</span>
@@ -429,27 +510,30 @@ export default function StudentDashboardPage({ user }) {
                     <div className="feedback-panel">
                       <div className="feedback-panel-title">Feedback requested</div>
                       <div className="feedback-grid">
-                        <label className="field-block">
+                        <div className="field-block">
                           <span>Rating</span>
-                          <select value={draft.rating} onChange={function(event) {
-                            setFeedbackDrafts(function(previous) {
-                              return { ...previous, [ticket.id]: { ...draft, rating: event.target.value } }
-                            })
-                          }}>
-                            {[5, 4, 3, 2, 1].map(function(value) {
-                              return <option key={value} value={value}>{value}</option>
-                            })}
-                          </select>
-                        </label>
+                          <StarRating
+                            value={draft.rating}
+                            idPrefix={`ticket-${ticket.id}`}
+                            onChange={function(nextRating) {
+                              setFeedbackDrafts(function(previous) {
+                                const current = previous[ticket.id] || { rating: '0', comment: '' }
+                                return { ...previous, [ticket.id]: { ...current, rating: String(nextRating) } }
+                              })
+                            }}
+                          />
+                        </div>
                         <label className="field-block field-block-wide">
                           <span>Comment</span>
                           <textarea value={draft.comment} onChange={function(event) {
+                            const nextValue = event.target.value
                             setFeedbackDrafts(function(previous) {
-                              return { ...previous, [ticket.id]: { ...draft, comment: event.target.value } }
+                              const current = previous[ticket.id] || { rating: '0', comment: '' }
+                              return { ...previous, [ticket.id]: { ...current, comment: nextValue } }
                             })
                           }} placeholder="How was your help session?" />
                         </label>
-                        <button className="secondary-action-button" type="button" onClick={function() { handleFeedback(ticket.id) }}>Submit feedback</button>
+                        <button className="secondary-action-button" type="button" disabled={!Number(draft.rating)} onClick={function() { handleFeedback(ticket.id) }}>Submit feedback</button>
                       </div>
                     </div>
                   ) : null}
@@ -487,26 +571,25 @@ export default function StudentDashboardPage({ user }) {
               {feedbackPopupTicket.teacherName ? `${feedbackPopupTicket.teacherName} marked your ${feedbackPopupTicket.courseLabel} ticket as complete.` : `Your ${feedbackPopupTicket.courseLabel} ticket was marked complete.`} Please rate your experience.
             </p>
             <div className="feedback-grid">
-              <label className="field-block">
+              <div className="field-block">
                 <span>Rating</span>
-                <select value={(feedbackDrafts[feedbackPopupTicket.id] || { rating: '5', comment: '' }).rating} onChange={function(event) {
-                  const nextValue = event.target.value
-                  setFeedbackDrafts(function(previous) {
-                    const current = previous[feedbackPopupTicket.id] || { rating: '5', comment: '' }
-                    return { ...previous, [feedbackPopupTicket.id]: { ...current, rating: nextValue } }
-                  })
-                }}>
-                  {[5, 4, 3, 2, 1].map(function(value) {
-                    return <option key={value} value={value}>{value}</option>
-                  })}
-                </select>
-              </label>
+                <StarRating
+                  value={(feedbackDrafts[feedbackPopupTicket.id] || { rating: '0', comment: '' }).rating}
+                  idPrefix={`popup-${feedbackPopupTicket.id}`}
+                  onChange={function(nextRating) {
+                    setFeedbackDrafts(function(previous) {
+                      const current = previous[feedbackPopupTicket.id] || { rating: '0', comment: '' }
+                      return { ...previous, [feedbackPopupTicket.id]: { ...current, rating: String(nextRating) } }
+                    })
+                  }}
+                />
+              </div>
               <label className="field-block field-block-wide">
                 <span>Comment</span>
-                <textarea value={(feedbackDrafts[feedbackPopupTicket.id] || { rating: '5', comment: '' }).comment} onChange={function(event) {
+                <textarea value={(feedbackDrafts[feedbackPopupTicket.id] || { rating: '0', comment: '' }).comment} onChange={function(event) {
                   const nextValue = event.target.value
                   setFeedbackDrafts(function(previous) {
-                    const current = previous[feedbackPopupTicket.id] || { rating: '5', comment: '' }
+                    const current = previous[feedbackPopupTicket.id] || { rating: '0', comment: '' }
                     return { ...previous, [feedbackPopupTicket.id]: { ...current, comment: nextValue } }
                   })
                 }} placeholder="Tell us about the support you received." />
@@ -516,7 +599,7 @@ export default function StudentDashboardPage({ user }) {
               <button className="secondary-action-button" type="button" onClick={function() { setFeedbackPopupTicket(null) }}>
                 Later
               </button>
-              <button className="help-button" type="button" onClick={function() { handleFeedback(feedbackPopupTicket.id) }}>
+              <button className="help-button" type="button" disabled={!Number((feedbackDrafts[feedbackPopupTicket.id] || { rating: '0', comment: '' }).rating)} onClick={function() { handleFeedback(feedbackPopupTicket.id) }}>
                 Submit feedback
               </button>
             </div>

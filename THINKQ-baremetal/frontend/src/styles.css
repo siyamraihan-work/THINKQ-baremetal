@@ -2176,3 +2176,393 @@ body.sheet-lock {
     font-weight: 800;
   }
 }
+
+/* =========================================================
+   THINKQ FEATURE PACK v3
+   ---------------------------------------------------------
+   Star feedback rating, student ticket delete (X), queue
+   count badge, tutor ticket-offer popup stack, return-to-
+   queue button, one-ticket lock notice and required-field
+   markers.
+
+   Appended last on purpose so it wins the cascade without
+   editing anything above. The two `position: relative`
+   additions (.queue-ticket-card, .queue-launch-button) are
+   written here as new rules rather than as edits to the
+   original blocks.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   1. Feedback star rating
+   --------------------------------------------------------- */
+
+.star-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.star-button {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: #d3dbec;
+  cursor: pointer;
+  transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.star-button:hover {
+  transform: scale(1.12);
+}
+
+.star-button:focus-visible {
+  outline: 2px solid #2463ff;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.star-button.is-on {
+  color: #f5a524;
+  text-shadow: 0 0 12px rgba(245, 165, 36, 0.55);
+}
+
+.star-rating-caption {
+  margin-left: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #6a7da7;
+}
+
+/* ---------------------------------------------------------
+   2. Delete-my-ticket X button
+   --------------------------------------------------------- */
+
+.queue-ticket-card {
+  position: relative;
+}
+
+/* Only the cards that actually render the X need the gutter; every
+   other queue card keeps its symmetric 18px padding. */
+.queue-ticket-card:has(.ticket-delete-button) {
+  padding-right: 46px;
+}
+
+.ticket-delete-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f0d3d8;
+  border-radius: 999px;
+  background: #fff5f6;
+  color: #c2405a;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.ticket-delete-button:hover {
+  background: #ffe3e7;
+}
+
+.ticket-delete-button:active {
+  transform: scale(0.94);
+}
+
+.ticket-delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------
+   3. Queue count badge on the header queue button
+   --------------------------------------------------------- */
+
+.queue-launch-button {
+  position: relative;
+}
+
+.queue-count-ball {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 2px solid rgba(10, 22, 59, 0.85);
+  background: linear-gradient(135deg, #ff9a2e 0%, #f0640f 100%);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(240, 110, 20, 0.42);
+}
+
+/* ---------------------------------------------------------
+   4. Tutor ticket-offer popup stack (floats above the app,
+      the bottom sheets at z-index 46 and the FABs at 40)
+   --------------------------------------------------------- */
+
+.offer-stack {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 70;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.offer-card {
+  pointer-events: auto;
+  background: #ffffff;
+  color: #3c465f;
+  border-radius: 20px;
+  border-left: 5px solid #2463ff;
+  padding: 16px 18px;
+  box-shadow: 0 22px 50px rgba(3, 15, 45, 0.34);
+  animation: offer-slide-in 0.28s ease;
+}
+
+@keyframes offer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes offer-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.offer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.offer-eyebrow {
+  color: #2463ff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.offer-dismiss-button {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f6;
+  border-radius: 999px;
+  background: #f4f6fc;
+  color: #3c4a6b;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.offer-dismiss-button:hover {
+  background: #e9edf9;
+}
+
+.offer-student {
+  font-size: 1.15rem;
+  font-weight: 850;
+  color: #17233f;
+  word-break: break-word;
+}
+
+.offer-meta {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 0.88rem;
+  color: #55618a;
+}
+
+.offer-meta-row strong {
+  margin-right: 4px;
+  color: #3c465f;
+}
+
+.offer-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #e2eafc;
+  border-radius: 12px;
+  background: #f5f8ff;
+  color: #43506f;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.offer-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.offer-accept-button {
+  flex: 1;
+  min-height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0ba360 0%, #2ec98a 100%);
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(14, 150, 92, 0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.offer-accept-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(14, 150, 92, 0.42);
+}
+
+.offer-accept-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------------------------------------------------------
+   5. Return-to-queue button (amber sibling of
+      .secondary-action-button)
+   --------------------------------------------------------- */
+
+.requeue-button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: #fff3e2;
+  color: #b0560c;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.requeue-button:hover {
+  background: #ffe7c9;
+  transform: translateY(-1px);
+}
+
+.requeue-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------------------------------------------------------
+   6. One-active-ticket lock notice
+   --------------------------------------------------------- */
+
+.form-lock-notice {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  background: #fff7ed;
+  color: #9a4a06;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   7. Required field marker
+   --------------------------------------------------------- */
+
+.field-required {
+  margin-left: 4px;
+  color: #d1435b;
+  font-weight: 800;
+}
+
+/* ---------------------------------------------------------
+   Phone layout for the feature pack (≤ 760px)
+   --------------------------------------------------------- */
+
+@media (max-width: 760px) {
+
+  /* Bigger touch target for the ticket X */
+  .ticket-delete-button {
+    width: 34px;
+    height: 34px;
+    top: 10px;
+    right: 10px;
+  }
+
+  .queue-ticket-card:has(.ticket-delete-button) {
+    padding-right: 52px;
+  }
+
+  /* The header queue button shrinks to 40x40 on phones, so the
+     badge shrinks with it and stays legible in the corner. */
+  .queue-count-ball {
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 0.64rem;
+    border-width: 2px;
+  }
+
+  /* Offers span the width but never bury the dashboard */
+  .offer-stack {
+    top: 10px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 60dvh;
+  }
+
+  .offer-card {
+    padding: 14px 16px;
+    border-radius: 18px;
+    animation-name: offer-drop-in;
+  }
+
+  .offer-student {
+    font-size: 1.08rem;
+  }
+
+  .offer-accept-button {
+    min-height: 48px;
+  }
+}

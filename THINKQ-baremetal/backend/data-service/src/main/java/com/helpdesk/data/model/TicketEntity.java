@@ -59,6 +59,9 @@ public class TicketEntity {
     @Column(nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
+    @Column(name = "queued_at")
+    private OffsetDateTime queuedAt;
+
     private OffsetDateTime acceptedAt;
 
     private OffsetDateTime completedAt;
@@ -82,6 +85,7 @@ public class TicketEntity {
     public Integer getRating() { return rating; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public OffsetDateTime getQueuedAt() { return queuedAt; }
     public OffsetDateTime getAcceptedAt() { return acceptedAt; }
     public OffsetDateTime getCompletedAt() { return completedAt; }
 
@@ -99,6 +103,7 @@ public class TicketEntity {
     public void setRating(Integer rating) { this.rating = rating; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setQueuedAt(OffsetDateTime queuedAt) { this.queuedAt = queuedAt; }
     public void setAcceptedAt(OffsetDateTime acceptedAt) { this.acceptedAt = acceptedAt; }
     public void setCompletedAt(OffsetDateTime completedAt) { this.completedAt = completedAt; }
 }

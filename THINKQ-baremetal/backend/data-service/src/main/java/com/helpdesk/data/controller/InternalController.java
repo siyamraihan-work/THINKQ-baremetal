@@ -187,6 +187,22 @@ public class InternalController {
         return service.assignTicket(ticketId, request);
     }
 
+    @PatchMapping("/tickets/{ticketId}/requeue")
+    public TicketResponse requeueTicket(
+            @PathVariable("ticketId") Long ticketId,
+            @Valid @RequestBody RequeueTicketRequest request
+    ) {
+        return service.requeueTicket(ticketId, request);
+    }
+
+    @DeleteMapping("/tickets/{ticketId}")
+    public TicketResponse deleteTicket(
+            @PathVariable("ticketId") Long ticketId,
+            @RequestParam("studentId") Long studentId
+    ) {
+        return service.deleteTicket(ticketId, studentId);
+    }
+
     @PatchMapping("/tickets/{ticketId}/complete")
     public TicketResponse completeTicket(
             @PathVariable("ticketId") Long ticketId,

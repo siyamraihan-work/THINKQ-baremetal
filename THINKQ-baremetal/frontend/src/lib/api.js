@@ -113,6 +113,14 @@ export function submitTicketFeedback(ticketId, payload) {
   })
 }
 
+export function deleteTicket(ticketId) {
+  return request(`/tickets/${ticketId}`, { method: 'DELETE' })
+}
+
+export function requeueTicket(ticketId) {
+  return request(`/tickets/${ticketId}/requeue`, { method: 'POST' })
+}
+
 export function getAdminUsers() {
   return request('/api/admin/users', { method: 'GET' })
 }

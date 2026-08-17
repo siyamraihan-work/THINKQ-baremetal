@@ -25,5 +25,7 @@ public record TicketResponse(
         String feedbackComment,
         OffsetDateTime createdAt,
         OffsetDateTime acceptedAt,
-        OffsetDateTime completedAt
+        OffsetDateTime completedAt,
+        Long roomId,
+        Long buildingId
 ) {}

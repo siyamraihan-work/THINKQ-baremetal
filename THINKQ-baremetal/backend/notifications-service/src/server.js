@@ -43,6 +43,13 @@ function normalizeOptionalPositiveInt(value) {
   return parsed;
 }
 
+// Student ids are always numeric. Rejecting anything else keeps the value safe to
+// interpolate into the inline script of the server-rendered student page.
+function parseStudentIdParam(value) {
+  const raw = String(value === undefined || value === null ? '' : value);
+  return /^[0-9]+$/.test(raw) ? raw : null;
+}
+
 function parseRoomFilter(source) {
   return {
     buildingId: normalizeOptionalPositiveInt(source?.buildingId),
@@ -140,6 +147,53 @@ async function broadcastQueueState() {
   }));
 }
 
+async function getTeacherActiveRoomId(userId) {
+  const raw = await redis.get(`teacher-active-room:${userId}`);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.roomId ? Number(parsed.roomId) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function sendTicketOffer(ticket, excludeUserId) {
+  const roomId = ticket && ticket.roomId !== null && ticket.roomId !== undefined ? Number(ticket.roomId) : null;
+
+  if (!roomId) {
+    return;
+  }
+
+  const clients = Array.from(teacherClients);
+
+  await Promise.all(clients.map(async function(client) {
+    try {
+      if (excludeUserId !== null && excludeUserId !== undefined && String(client.userId) === String(excludeUserId)) {
+        return;
+      }
+
+      const activeRoomId = await getTeacherActiveRoomId(client.userId);
+
+      if (activeRoomId && activeRoomId === roomId) {
+        sendSse(client.res, 'ticketOffer', ticket);
+      }
+    } catch (error) {
+      console.error('Ticket offer fan-out failed', error);
+    }
+  }));
+}
+
+function resolveTicketOffer(ticketId) {
+  for (const client of teacherClients) {
+    sendSse(client.res, 'ticketOfferResolved', { ticketId: ticketId });
+  }
+}
+
 async function requireSession(req, res, next) {
   try {
     const sid = req.cookies.sid;
@@ -183,10 +237,12 @@ app.get('/health', function(req, res) {
 
 app.get('/events/teachers', requireSession, requireRole('TEACHER', 'ADMIN'), function(req, res) {
   initSse(res);
-  teacherClients.add(res);
+
+  const client = { res: res, userId: String(req.user.id) };
+  teacherClients.add(client);
 
   req.on('close', function() {
-    teacherClients.delete(res);
+    teacherClients.delete(client);
   });
 });
 
@@ -200,6 +256,10 @@ app.get('/events/queue', requireSession, async function(req, res) {
 
   queueClients.add(client);
 
+  req.on('close', function() {
+    queueClients.delete(client);
+  });
+
   try {
     const snapshot = await fetchQueueSnapshot(client.filter);
     const metrics = await fetchQueueMetrics(client.filter);
@@ -209,14 +269,14 @@ app.get('/events/queue', requireSession, async function(req, res) {
   } catch (error) {
     sendSse(res, 'error', { message: error.message });
   }
-
-  req.on('close', function() {
-    queueClients.delete(client);
-  });
 });
 
 app.get('/events/students/:studentId', requireSession, function(req, res) {
-  const studentId = String(req.params.studentId);
+  const studentId = parseStudentIdParam(req.params.studentId);
+
+  if (!studentId) {
+    return res.status(400).json({ error: 'Invalid student id' });
+  }
 
   if (req.user.role !== 'ADMIN' && String(req.user.id) !== studentId) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -245,7 +305,11 @@ app.get('/queue/live', requireSession, function(req, res) {
 });
 
 app.get('/student/live/:studentId', requireSession, function(req, res) {
-  const studentId = String(req.params.studentId);
+  const studentId = parseStudentIdParam(req.params.studentId);
+
+  if (!studentId) {
+    return res.status(400).json({ error: 'Invalid student id' });
+  }
 
   if (req.user.role !== 'ADMIN' && String(req.user.id) !== studentId) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -290,6 +354,28 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
         margin-top: 10px;
         padding: 10px;
       }
+
+      .star-row {
+        display: flex;
+        gap: 4px;
+        margin-top: 10px;
+      }
+
+      .star {
+        width: auto;
+        margin: 0;
+        padding: 2px 4px;
+        border: none;
+        background: none;
+        font-size: 1.9rem;
+        line-height: 1;
+        color: #cbd5e1;
+        cursor: pointer;
+      }
+
+      .star.is-on {
+        color: #f5a524;
+      }
     </style>
   </head>
   <body>
@@ -303,13 +389,14 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
         <p id="feedbackText"></p>
 
         <label>Rating</label>
-        <select id="rating" required>
-          <option value="5">5 - Excellent</option>
-          <option value="4">4 - Good</option>
-          <option value="3">3 - Average</option>
-          <option value="2">2 - Poor</option>
-          <option value="1">1 - Very Poor</option>
-        </select>
+        <div id="starRating" class="star-row">
+          <button type="button" class="star" data-value="1">&#9733;</button>
+          <button type="button" class="star" data-value="2">&#9733;</button>
+          <button type="button" class="star" data-value="3">&#9733;</button>
+          <button type="button" class="star" data-value="4">&#9733;</button>
+          <button type="button" class="star" data-value="5">&#9733;</button>
+        </div>
+        <input type="hidden" id="rating" value="0" />
 
         <label>Comment</label>
         <textarea id="comment" maxlength="500" placeholder="Share your feedback"></textarea>
@@ -324,6 +411,8 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
       const dialog = document.getElementById('feedbackDialog');
       const form = document.getElementById('feedbackForm');
       const feedbackText = document.getElementById('feedbackText');
+      const rating = document.getElementById('rating');
+      const stars = Array.prototype.slice.call(document.querySelectorAll('#starRating .star'));
       let activeTicketId = null;
 
       function appendMessage(text) {
@@ -332,6 +421,20 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
         div.textContent = text;
         messages.prepend(div);
       }
+
+      function setRating(value) {
+        rating.value = String(value);
+
+        stars.forEach(function(star) {
+          star.classList.toggle('is-on', Number(star.dataset.value) <= value);
+        });
+      }
+
+      stars.forEach(function(star) {
+        star.addEventListener('click', function() {
+          setRating(Number(star.dataset.value));
+        });
+      });
 
       const stream = new EventSource('/events/students/' + studentId);
 
@@ -344,6 +447,7 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
         const payload = JSON.parse(event.data);
         activeTicketId = payload.ticket.id;
         feedbackText.textContent = 'Please rate your completed ticket for ' + payload.ticket.courseLabel + ' with ' + payload.ticket.teacherName + '.';
+        setRating(0);
         dialog.showModal();
       });
 
@@ -351,6 +455,11 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
         e.preventDefault();
 
         if (!activeTicketId) {
+          return;
+        }
+
+        if (Number(rating.value) < 1) {
+          appendMessage('Please select a star rating before submitting feedback.');
           return;
         }
 
@@ -382,17 +491,25 @@ app.get('/student/live/:studentId', requireSession, function(req, res) {
   `);
 });
 
-subscriber.subscribe('ticket-events');
+subscriber.subscribe('ticket-events').catch(function(error) {
+  console.error('Failed to subscribe to ticket-events', error);
+});
 
 subscriber.on('message', async function(channel, message) {
   try {
     const event = JSON.parse(message);
 
     for (const client of teacherClients) {
-      sendSse(client, 'teacherNotification', event);
+      sendSse(client.res, 'teacherNotification', event);
     }
 
-    await broadcastQueueState();
+    if (event.type === 'TICKET_CREATED' || event.type === 'TICKET_REQUEUED') {
+      await sendTicketOffer(event.payload, event.payload.requeuedByTeacherId);
+    }
+
+    if (event.type === 'TICKET_ASSIGNED' || event.type === 'TICKET_COMPLETED' || event.type === 'TICKET_DELETED') {
+      resolveTicketOffer(event.payload.id);
+    }
 
     if (event.type === 'TICKET_ASSIGNED') {
       const studentId = String(event.payload.studentId);
@@ -422,6 +539,22 @@ subscriber.on('message', async function(channel, message) {
         });
       }
     }
+
+    if (event.type === 'TICKET_REQUEUED') {
+      const studentId = String(event.payload.studentId);
+      const clients = studentClients.get(studentId) || [];
+
+      for (const client of clients) {
+        sendSse(client, 'studentNotification', {
+          message: 'Your ticket was returned to the queue and is waiting for the next available tutor.',
+          ticket: event.payload
+        });
+      }
+    }
+
+    broadcastQueueState().catch(function(error) {
+      console.error('Queue broadcast failed', error);
+    });
   } catch (error) {
     console.error('Redis message handler failed', error);
   }

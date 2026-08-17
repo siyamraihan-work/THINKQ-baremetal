@@ -42,12 +42,14 @@ const teacherActiveRoomSchema = z.object({
 function requireInternalApiKey(req, res, next) {
   const provided = String(req.headers['x-internal-api-key'] || '');
   const expected = String(INTERNAL_API_KEY || '');
+  const providedBuffer = Buffer.from(provided, 'utf8');
+  const expectedBuffer = Buffer.from(expected, 'utf8');
 
   if (
     !provided ||
     !expected ||
-    provided.length !== expected.length ||
-    !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+    providedBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
   ) {
     return res.status(401).json({ error: 'Missing or invalid internal API key' });
   }
@@ -466,6 +468,41 @@ app.delete('/tickets/teacher/active-room', requireSession(redis), requireRole('T
   }
 });
 
+app.delete('/tickets/:id', requireSession(redis), requireRole('STUDENT', 'ADMIN'), async function(req, res, next) {
+  try {
+    const ticketId = z.coerce.number().int().positive().parse(req.params.id);
+
+    const deleted = await dataRequest(`/internal/tickets/${ticketId}?studentId=${req.user.id}`, {
+      method: 'DELETE'
+    });
+
+    await redis.del('cache:queue:active');
+    await publishTicketEvent('TICKET_DELETED', deleted);
+
+    res.json(deleted);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/tickets/:id/requeue', requireSession(redis), requireRole('TEACHER', 'ADMIN'), async function(req, res, next) {
+  try {
+    const ticketId = z.coerce.number().int().positive().parse(req.params.id);
+
+    const updated = await dataRequest(`/internal/tickets/${ticketId}/requeue`, {
+      method: 'PATCH',
+      body: JSON.stringify({ teacherId: req.user.id })
+    });
+
+    await redis.del('cache:queue:active');
+    await publishTicketEvent('TICKET_REQUEUED', { ...updated, requeuedByTeacherId: req.user.id });
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/tickets/:id/accept', requireSession(redis), requireRole('TEACHER', 'ADMIN'), async function(req, res, next) {
   try {
     const activeRoom = await getTeacherActiveRoomRecord(req.user.id);
@@ -606,6 +643,15 @@ app.post('/tickets/internal/purge', requireInternalApiKey, async function(req, r
 });
 
 app.use(function(error, req, res, next) {
+  if (error && error.name === 'ZodError' && Array.isArray(error.issues)) {
+    const message = error.issues.map(function(issue) {
+      const path = Array.isArray(issue.path) ? issue.path.join('.') : '';
+      return path ? `${path}: ${issue.message}` : issue.message;
+    }).join(', ');
+
+    return res.status(400).json({ error: message || 'Invalid request' });
+  }
+
   console.error(error);
   res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
 });
