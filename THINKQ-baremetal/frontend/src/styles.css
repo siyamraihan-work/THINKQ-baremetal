@@ -2489,22 +2489,7 @@ body.sheet-lock {
 }
 
 /* ---------------------------------------------------------
-   6. One-active-ticket lock notice
-   --------------------------------------------------------- */
-
-.form-lock-notice {
-  margin-bottom: 16px;
-  padding: 14px 16px;
-  border: 1px solid #fed7aa;
-  border-radius: 16px;
-  background: #fff7ed;
-  color: #9a4a06;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-/* ---------------------------------------------------------
-   7. Required field marker
+   6. Required field marker
    --------------------------------------------------------- */
 
 .field-required {

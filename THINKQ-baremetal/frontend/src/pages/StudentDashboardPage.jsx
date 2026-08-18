@@ -392,12 +392,6 @@ export default function StudentDashboardPage({ user }) {
             </div>
           </div>
 
-          {activeTicket ? (
-            <div className="form-lock-notice">
-              You already have an open help request for {activeTicket.courseLabel}. Delete it with the × on its card, or wait until a tutor completes it, before submitting another one.
-            </div>
-          ) : null}
-
           <form className="ticket-form" onSubmit={handleSubmit}>
             <label className="field-block">
               <span>Building</span>
@@ -461,7 +455,7 @@ export default function StudentDashboardPage({ user }) {
             </label>
 
             <button className="help-button field-block-wide" type="submit" disabled={isSaving || Boolean(activeTicket) || !form.locationId || !form.subject || !form.courseId}>
-              {isSaving ? 'Submitting...' : 'Help Me'}
+              {isSaving ? 'Submitting...' : activeTicket ? 'In Queue' : 'Help Me'}
             </button>
           </form>
         </section>
